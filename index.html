@@ -4,17 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Casa Tonal</title>
-<link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#2C1810">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-:root{
-  --cafe:#2C1810;--cafe-light:#6B3A2A;--crema:#F5EDD6;--crema-dark:#E8D5B0;
-  --verde:#1D4A2A;--blanco:#FDFAF5;--texto:#1A0F0A;--texto-suave:#6B5B4E;
-  --radio:16px;--radio-sm:10px
-}
+:root{--cafe:#2C1810;--cafe-light:#6B3A2A;--crema:#F5EDD6;--crema-dark:#E8D5B0;--verde:#1D4A2A;--blanco:#FDFAF5;--texto:#1A0F0A;--texto-suave:#6B5B4E;--radio:16px;--radio-sm:10px}
 body{font-family:'DM Sans',sans-serif;background:var(--blanco);color:var(--texto);min-height:100vh;max-width:430px;margin:0 auto;overflow-x:hidden}
 .header{background:var(--cafe);padding:1.5rem 1.25rem 1rem;position:sticky;top:0;z-index:100}
 .header-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem}
@@ -204,21 +199,29 @@ body{font-family:'DM Sans',sans-serif;background:var(--blanco);color:var(--texto
     </div>
   </div>
 </div>
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDS0WLFnZ5B18EQyVYQZxnywUuinI0tIRs&libraries=places&language=es"></script>
+
 <script>
+const MAPS_KEY='AIzaSyDS0WLFnZ5B18EQyVYQZxnywUuinI0tIRs';
 const SUPA_URL='https://icoikvoemymknqzsegxr.supabase.co';
 const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imljb2lrdm9lbXlta25xenNlZ3hyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3MjMwNTYsImV4cCI6MjA5MDI5OTA1Nn0.Hr4dmj1D_a7zZVNQDomqFSbyUzaB0lfYV8yhHiu8sps';
-let sb,carrito=[],tipoEntrega='domicilio',tipoPago='efectivo',pedidoActivo=null;
-let autocompleteService,geocoder,debounce=null;
+
+let sb,carrito=[],tipoEntrega='domicilio',tipoPago='efectivo',pedidoActivo=null,debounce=null;
+
 const EMOJIS={'espresso':'☕','lungo':'☕','americano':'☕','black long':'☕','latte':'☕','flat white':'☕','macchiato':'☕','capuccino':'☕','moka':'☕','chocolate caliente':'🍫','té':'🍵','tisana':'🌿','affogato':'🍨','iced':'🧊','brisa':'🥥','limonada':'🍹','marea':'💙','soda':'🫧','frappé':'🧋','malteada':'🥛','cuernito':'🥐','torta':'🥪','club sandwich':'🥪','molletes':'🍞','waffle':'🧇','extra':'➕','pay':'🥧','chocoflan':'🍮','flan':'🍮','cheesecake':'🎂'};
 function getEmoji(n){const k=n.toLowerCase();for(const[e,v]of Object.entries(EMOJIS)){if(k.includes(e))return v}return'🍽️'}
+
+// Cargar Google Maps con la nueva API async
+(g=>{var h,a,k,p='The Google Maps JavaScript API',c='google',l='importLibrary',q='__ib__',m=document,b=window;b=b[c]||(b[c]={});var d=b.maps||(b.maps={}),r=new Set,e=new URLSearchParams,u=()=>h||(h=new Promise(async(f,n)=>{await (a=m.createElement('script'));e.set('libraries',[...r]+'');for(k in g)e.set(k.replace(/[A-Z]/g,t=>'_'+t[0].toLowerCase()),g[k]);e.set('callback',c+'.maps.'+q);a.src=`https://maps.${c}apis.com/maps/api/js?`+e;d[q]=f;a.onerror=()=>h=n(Error(p+' could not load.'));a.nonce=m.querySelector('script[nonce]')?.nonce||'';m.head.append(a)}));d[l]?console.warn(p+' only loads once.'):d[l]=(f,...n)=>r.add(f)&&u().then(()=>d[l](f,...n))})({key:MAPS_KEY,v:'weekly',language:'es'});
+
 async function init(){
   try{
     sb=supabase.createClient(SUPA_URL,SUPA_KEY);
     await cargarMenu();
-    if(window.google){autocompleteService=new google.maps.places.AutocompleteService();geocoder=new google.maps.Geocoder();}
-  }catch(e){document.getElementById('menu-contenido').innerHTML='<div class="empty-state"><span class="big">☕</span><p>Sin conexión al menú.<br>Verifica tu internet e intenta de nuevo.</p></div>';}
+  }catch(e){
+    document.getElementById('menu-contenido').innerHTML='<div class="empty-state"><span class="big">☕</span><p>Sin conexión al menú.<br>Verifica tu internet e intenta de nuevo.</p></div>';
+  }
 }
+
 async function cargarMenu(){
   const mc=document.getElementById('menu-contenido');
   try{
@@ -249,6 +252,8 @@ async function cargarMenu(){
     mc.innerHTML=html;
   }catch(e){mc.innerHTML='<div class="empty-state"><span class="big">☕</span><p>Sin conexión al menú.<br>Verifica tu internet e intenta de nuevo.</p></div>';}
 }
+
+// GPS - usar ubicación actual
 function usarUbicacion(){
   if(!navigator.geolocation){mostrarNotif('Tu navegador no soporta GPS');return}
   const btn=document.getElementById('btn-gps'),txt=document.getElementById('gps-texto');
@@ -256,10 +261,13 @@ function usarUbicacion(){
   navigator.geolocation.getCurrentPosition(async(pos)=>{
     const{latitude:lat,longitude:lng}=pos.coords;
     try{
-      const res=await fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=AIzaSyDS0WLFnZ5B18EQyVYQZxnywUuinI0tIRs&language=es`);
+      const res=await fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${MAPS_KEY}&language=es`);
       const data=await res.json();
-      if(data.results?.[0]){document.getElementById('inp-direccion').value=data.results[0].formatted_address;txt.textContent='Ubicación detectada';mostrarNotif('Ubicación agregada');}
-      else txt.textContent='No se pudo obtener la dirección';
+      if(data.results?.[0]){
+        document.getElementById('inp-direccion').value=data.results[0].formatted_address;
+        txt.textContent='Ubicación detectada';
+        mostrarNotif('Ubicación agregada');
+      }else{txt.textContent='No se pudo obtener la dirección';}
     }catch(e){txt.textContent='Error al obtener dirección';}
     btn.classList.remove('cargando');
   },(err)=>{
@@ -268,27 +276,38 @@ function usarUbicacion(){
     if(err.code===1)mostrarNotif('Puedes escribir tu dirección manualmente');
   },{enableHighAccuracy:true,timeout:8000});
 }
+
+// Autocomplete con nueva API AutocompleteSuggestion
 function onDireccionInput(val){
   const sug=document.getElementById('sugerencias');
   if(!val||val.length<3){sug.style.display='none';return}
-  clearTimeout(debounce);debounce=setTimeout(()=>buscarDirecciones(val),350);
+  clearTimeout(debounce);debounce=setTimeout(()=>buscarDirecciones(val),400);
 }
 function onDireccionFocus(){const val=document.getElementById('inp-direccion').value;if(val&&val.length>=3)buscarDirecciones(val);}
-function buscarDirecciones(texto){
-  if(!autocompleteService)return;
-  autocompleteService.getPlacePredictions({input:texto,language:'es',componentRestrictions:{country:'mx'}},(predictions,status)=>{
-    const sug=document.getElementById('sugerencias');
-    if(status!==google.maps.places.PlacesServiceStatus.OK||!predictions){sug.style.display='none';return;}
+
+async function buscarDirecciones(texto){
+  const sug=document.getElementById('sugerencias');
+  try{
+    const{AutocompleteSuggestion}=await google.maps.importLibrary('places');
+    const req={input:texto,language:'es',region:'mx'};
+    const{suggestions}=await AutocompleteSuggestion.fetchAutocompleteSuggestions(req);
+    if(!suggestions||!suggestions.length){sug.style.display='none';return;}
     let html='';
-    for(const p of predictions.slice(0,4)){
-      const main=p.structured_formatting.main_text,sec=p.structured_formatting.secondary_text||'';
-      html+=`<div class="sugerencia-item" onclick="seleccionarDireccion('${p.description.replace(/'/g,"\\'")}')"><span class="sugerencia-icon">📍</span><div class="sugerencia-texto"><div class="sugerencia-principal">${main}</div><div class="sugerencia-secundario">${sec}</div></div></div>`;
+    for(const s of suggestions.slice(0,4)){
+      const p=s.placePrediction;
+      const main=p.mainText?.text||p.text?.text||'';
+      const sec=p.secondaryText?.text||'';
+      const full=p.text?.text||main;
+      html+=`<div class="sugerencia-item" onclick="seleccionarDireccion('${full.replace(/'/g,"\\'")}')"><span class="sugerencia-icon">📍</span><div class="sugerencia-texto"><div class="sugerencia-principal">${main}</div><div class="sugerencia-secundario">${sec}</div></div></div>`;
     }
     sug.innerHTML=html;sug.style.display='block';
-  });
+  }catch(e){sug.style.display='none';}
 }
+
 function seleccionarDireccion(dir){document.getElementById('inp-direccion').value=dir;document.getElementById('sugerencias').style.display='none';}
 document.addEventListener('click',function(e){if(!e.target.closest('.dir-wrapper')&&!e.target.closest('#btn-gps'))document.getElementById('sugerencias').style.display='none';});
+
+// Carrito
 const seleccionadas={};
 function selVariante(pid,vid,vnombre,vprecio,pnombre,emoji){
   seleccionadas[pid]={vid,vnombre,vprecio,pnombre,emoji};
