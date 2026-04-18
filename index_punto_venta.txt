@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Casa Tonal — Admin</title>
+<meta name="theme-color" content="#1A0F0A">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0F0804;--bg2:#1A0F0A;--bg3:#241510;--cafe:#2C1810;--cafe-light:#6B3A2A;
+  --crema:#F5EDD6;--crema-dim:rgba(245,237,214,.6);--crema-muted:rgba(245,237,214,.25);
+  --verde:#1D6A35;--verde-bg:#0D2E18;--rojo:#8B1A1A;--rojo-bg:#2E0D0D;
+  --amarillo:#8B6914;--amarillo-bg:#2E220A;--azul:#1A3A6B;--azul-bg:#0D1A2E;
+  --texto:var(--crema);--texto-suave:var(--crema-dim);--radio:12px;--radio-sm:8px
+}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--texto);min-height:100vh;overflow-x:hidden}
+
+/* LOGIN */
+.login-screen{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:1000;flex-direction:column;gap:2rem}
+.login-logo{font-family:'Playfair Display',serif;font-size:32px;color:var(--crema);text-align:center}
+.login-sub{font-size:13px;color:var(--crema-dim);text-align:center;margin-top:-.5rem}
+.login-card{background:var(--bg2);border:1px solid rgba(245,237,214,.1);border-radius:var(--radio);padding:2rem;width:320px;display:flex;flex-direction:column;gap:1rem}
+.login-campo label{display:block;font-size:11px;color:var(--crema-dim);margin-bottom:.4rem;font-family:'DM Mono',monospace;letter-spacing:.5px}
+.login-campo input{width:100%;padding:.7rem 1rem;background:var(--bg3);border:1px solid rgba(245,237,214,.15);border-radius:var(--radio-sm);color:var(--crema);font-family:'DM Sans',sans-serif;font-size:14px;outline:none}
+.login-campo input:focus{border-color:rgba(245,237,214,.4)}
+.login-btn{width:100%;padding:.85rem;background:var(--cafe-light);border:none;border-radius:var(--radio-sm);color:var(--crema);font-family:'DM Sans',sans-serif;font-size:15px;font-weight:500;cursor:pointer;transition:background .2s}
+.login-btn:hover{background:#7a4533}
+.login-error{font-size:12px;color:#e06060;text-align:center;display:none}
+
+/* HEADER */
+.header{background:var(--bg2);border-bottom:1px solid rgba(245,237,214,.08);padding:.85rem 1.5rem;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.header-logo{font-family:'Playfair Display',serif;font-size:18px;color:var(--crema)}
+.header-right{display:flex;align-items:center;gap:1rem}
+.badge-nuevo{background:var(--rojo);color:var(--crema);border-radius:50px;padding:.2rem .6rem;font-size:11px;font-weight:500;display:none}
+.badge-nuevo.visible{display:inline-block;animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
+.user-tag{font-size:12px;color:var(--crema-dim);font-family:'DM Mono',monospace}
+.logout-btn{background:transparent;border:1px solid rgba(245,237,214,.2);border-radius:50px;padding:.3rem .8rem;color:var(--crema-dim);font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif}
+.logout-btn:hover{border-color:var(--crema-dim);color:var(--crema)}
+
+/* TABS */
+.tabs-bar{background:var(--bg2);border-bottom:1px solid rgba(245,237,214,.08);padding:.75rem 1.5rem;display:flex;gap:.75rem}
+.tab-btn{padding:.45rem 1rem;border-radius:50px;border:1px solid rgba(245,237,214,.15);background:transparent;color:var(--crema-dim);font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .2s}
+.tab-btn.activo{background:var(--cafe-light);border-color:var(--cafe-light);color:var(--crema);font-weight:500}
+
+/* STATS */
+.stats-bar{display:grid;grid-template-columns:repeat(4,1fr);gap:.75rem;padding:1.25rem 1.5rem}
+.stat-card{background:var(--bg2);border:1px solid rgba(245,237,214,.08);border-radius:var(--radio);padding:.85rem 1rem}
+.stat-label{font-size:11px;color:var(--crema-dim);font-family:'DM Mono',monospace;letter-spacing:.5px;margin-bottom:.35rem}
+.stat-valor{font-family:'Playfair Display',serif;font-size:22px;color:var(--crema)}
+.stat-sub{font-size:11px;color:var(--crema-dim);margin-top:.2rem}
+
+/* VISTA LISTA */
+.vista{display:none;padding:0 1.5rem 1.5rem}
+.vista.activa{display:block}
+
+.filtros{display:flex;gap:.5rem;margin-bottom:1rem;flex-wrap:wrap}
+.filtro-btn{padding:.35rem .85rem;border-radius:50px;border:1px solid rgba(245,237,214,.15);background:transparent;color:var(--crema-dim);font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .2s}
+.filtro-btn.activo{border-color:var(--cafe-light);color:var(--crema);background:rgba(107,58,42,.3)}
+
+.pedidos-lista{display:flex;flex-direction:column;gap:.75rem}
+.pedido-card{background:var(--bg2);border:1px solid rgba(245,237,214,.08);border-radius:var(--radio);overflow:hidden;transition:border-color .2s}
+.pedido-card:hover{border-color:rgba(245,237,214,.2)}
+.pedido-card.nuevo{border-color:var(--rojo);animation:nuevoBorde 2s ease-in-out}
+@keyframes nuevoBorde{0%,100%{border-color:var(--rojo)}50%{border-color:#e06060}}
+.pedido-header{display:flex;align-items:center;justify-content:space-between;padding:.85rem 1rem;cursor:pointer}
+.pedido-id{font-family:'DM Mono',monospace;font-size:13px;color:var(--crema-dim)}
+.pedido-cliente{font-size:14px;font-weight:500;color:var(--crema)}
+.pedido-meta{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}
+.chip{padding:.25rem .6rem;border-radius:50px;font-size:11px;font-weight:500}
+.chip-domicilio{background:var(--azul-bg);color:#6fa3e0;border:1px solid #1a3a6b}
+.chip-recoger{background:var(--amarillo-bg);color:#d4a843;border:1px solid #4a3a10}
+.chip-efectivo{background:var(--verde-bg);color:#5cb87a;border:1px solid #1d4a2a}
+.chip-mp{background:var(--azul-bg);color:#6fa3e0;border:1px solid #1a3a6b}
+.chip-estado{padding:.25rem .7rem;border-radius:50px;font-size:11px;font-weight:500}
+.estado-recibido{background:var(--rojo-bg);color:#e06060;border:1px solid var(--rojo)}
+.estado-preparando{background:var(--amarillo-bg);color:#d4a843;border:1px solid var(--amarillo)}
+.estado-en_camino{background:var(--azul-bg);color:#6fa3e0;border:1px solid var(--azul)}
+.estado-listo{background:var(--azul-bg);color:#6fa3e0;border:1px solid var(--azul)}
+.estado-entregado{background:var(--verde-bg);color:#5cb87a;border:1px solid var(--verde)}
+.estado-cancelado{background:var(--bg3);color:var(--crema-dim);border:1px solid rgba(245,237,214,.15)}
+.pedido-total{font-family:'Playfair Display',serif;font-size:16px;color:var(--crema)}
+
+.pedido-body{display:none;border-top:1px solid rgba(245,237,214,.08);padding:1rem}
+.pedido-body.abierto{display:block}
+.pedido-items{margin-bottom:1rem}
+.pedido-item-row{display:flex;justify-content:space-between;font-size:13px;padding:.3rem 0;border-bottom:.5px solid rgba(245,237,214,.06)}
+.pedido-item-row:last-child{border:none}
+.pedido-item-nombre{color:var(--crema-dim)}
+.pedido-item-precio{color:var(--crema);font-weight:500}
+.pedido-dir{font-size:12px;color:var(--crema-dim);margin-bottom:.75rem;padding:.5rem .75rem;background:var(--bg3);border-radius:var(--radio-sm)}
+.pedido-notas{font-size:12px;color:#d4a843;margin-bottom:.75rem;padding:.5rem .75rem;background:var(--amarillo-bg);border-radius:var(--radio-sm);border-left:2px solid var(--amarillo)}
+
+.acciones{display:flex;gap:.5rem;flex-wrap:wrap}
+.accion-btn{padding:.5rem 1rem;border-radius:var(--radio-sm);border:none;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:all .2s}
+.btn-preparando{background:var(--amarillo-bg);color:#d4a843;border:1px solid var(--amarillo)}
+.btn-preparando:hover{background:#3a2a0a}
+.btn-camino{background:var(--azul-bg);color:#6fa3e0;border:1px solid var(--azul)}
+.btn-camino:hover{background:#0d1e38}
+.btn-listo{background:var(--azul-bg);color:#6fa3e0;border:1px solid var(--azul)}
+.btn-listo:hover{background:#0d1e38}
+.btn-entregado{background:var(--verde-bg);color:#5cb87a;border:1px solid var(--verde)}
+.btn-entregado:hover{background:#0d2210}
+.btn-cancelar{background:var(--rojo-bg);color:#e06060;border:1px solid var(--rojo)}
+.btn-cancelar:hover{background:#200808}
+
+/* VISTA KANBAN */
+.kanban{display:grid;grid-template-columns:repeat(4,1fr);gap:.75rem;align-items:start}
+.kanban-col{background:var(--bg2);border:1px solid rgba(245,237,214,.08);border-radius:var(--radio);overflow:hidden}
+.kanban-header{padding:.75rem 1rem;border-bottom:1px solid rgba(245,237,214,.08);display:flex;align-items:center;justify-content:space-between}
+.kanban-titulo{font-size:13px;font-weight:500;font-family:'DM Mono',monospace;letter-spacing:.5px}
+.kanban-count{background:var(--bg3);border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--crema-dim)}
+.kanban-items{padding:.75rem;display:flex;flex-direction:column;gap:.5rem;min-height:100px}
+.kanban-card{background:var(--bg3);border:1px solid rgba(245,237,214,.08);border-radius:var(--radio-sm);padding:.75rem;cursor:pointer;transition:border-color .2s}
+.kanban-card:hover{border-color:rgba(245,237,214,.25)}
+.kanban-card.nuevo{border-color:var(--rojo)}
+.kanban-nombre{font-size:13px;font-weight:500;margin-bottom:.35rem}
+.kanban-detalle{font-size:11px;color:var(--crema-dim);line-height:1.5}
+.kanban-total{font-family:'Playfair Display',serif;font-size:14px;color:var(--crema);margin-top:.35rem}
+.kanban-vacio{font-size:12px;color:rgba(245,237,214,.2);text-align:center;padding:1rem;font-style:italic}
+
+/* NOTIFICACIÓN */
+.notif-toast{position:fixed;top:1rem;right:1rem;background:var(--bg2);border:1px solid var(--cafe-light);border-radius:var(--radio);padding:1rem 1.25rem;z-index:500;display:none;max-width:320px;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.notif-toast.visible{display:block;animation:slideIn .3s ease}
+@keyframes slideIn{from{transform:translateX(20px);opacity:0}to{transform:translateX(0);opacity:1}}
+.notif-titulo{font-size:14px;font-weight:500;color:var(--crema);margin-bottom:.25rem}
+.notif-body{font-size:12px;color:var(--crema-dim)}
+
+.empty-state{text-align:center;padding:3rem;color:var(--crema-dim);font-size:14px}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div class="login-screen" id="login-screen">
+  <div>
+    <div class="login-logo">Casa Tonal</div>
+    <div class="login-sub">Panel de administración</div>
+  </div>
+  <div class="login-card">
+    <div class="login-campo">
+      <label>USUARIO</label>
+      <input type="text" id="inp-user" placeholder="admin / empleado" />
+    </div>
+    <div class="login-campo">
+      <label>CONTRASEÑA</label>
+      <input type="password" id="inp-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')login()" />
+    </div>
+    <div class="login-error" id="login-error">Usuario o contraseña incorrectos</div>
+    <button class="login-btn" onclick="login()">Entrar</button>
+  </div>
+</div>
+
+<!-- NOTIF TOAST -->
+<div class="notif-toast" id="notif-toast">
+  <div class="notif-titulo" id="notif-titulo">Nuevo pedido</div>
+  <div class="notif-body" id="notif-body"></div>
+</div>
+
+<!-- APP -->
+<div id="app" style="display:none">
+  <div class="header">
+    <span class="header-logo">Casa Tonal ·  Admin</span>
+    <div class="header-right">
+      <span class="badge-nuevo" id="badge-nuevo">● NUEVO PEDIDO</span>
+      <span class="user-tag" id="user-tag"></span>
+      <button class="logout-btn" onclick="logout()">Salir</button>
+    </div>
+  </div>
+
+  <div class="tabs-bar">
+    <button class="tab-btn activo" onclick="cambiarTab('lista',this)">Lista</button>
+    <button class="tab-btn" onclick="cambiarTab('kanban',this)">Kanban</button>
+  </div>
+
+  <div class="stats-bar" id="stats-bar">
+    <div class="stat-card"><div class="stat-label">HOY</div><div class="stat-valor" id="stat-hoy">0</div><div class="stat-sub">pedidos</div></div>
+    <div class="stat-card"><div class="stat-label">PENDIENTES</div><div class="stat-valor" id="stat-pend">0</div><div class="stat-sub">por atender</div></div>
+    <div class="stat-card"><div class="stat-label">EN CAMINO</div><div class="stat-valor" id="stat-camino">0</div><div class="stat-sub">domicilios</div></div>
+    <div class="stat-card"><div class="stat-label">VENTAS HOY</div><div class="stat-valor" id="stat-ventas">$0</div><div class="stat-sub">total</div></div>
+  </div>
+
+  <div class="vista activa" id="vista-lista">
+    <div class="filtros">
+      <button class="filtro-btn activo" onclick="filtrar('todos',this)">Todos</button>
+      <button class="filtro-btn" onclick="filtrar('recibido',this)">Recibidos</button>
+      <button class="filtro-btn" onclick="filtrar('preparando',this)">Preparando</button>
+      <button class="filtro-btn" onclick="filtrar('en_camino',this)">En camino</button>
+      <button class="filtro-btn" onclick="filtrar('entregado',this)">Entregados</button>
+    </div>
+    <div class="pedidos-lista" id="pedidos-lista">
+      <div class="empty-state">Cargando pedidos...</div>
+    </div>
+  </div>
+
+  <div class="vista" id="vista-kanban">
+    <div class="kanban" id="kanban-board"></div>
+  </div>
+</div>
+
+<script>
+const SUPA_URL='https://icoikvoemymknqzsegxr.supabase.co';
+const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imljb2lrdm9lbXlta25xenNlZ3hyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3MjMwNTYsImV4cCI6MjA5MDI5OTA1Nn0.Hr4dmj1D_a7zZVNQDomqFSbyUzaB0lfYV8yhHiu8sps';
+
+const USUARIOS={
+  'admin':{pass:'tonal2024',rol:'admin'},
+  'empleado':{pass:'cafe2024',rol:'empleado'}
+};
+
+let sb,pedidos=[],filtroActual='todos',usuarioActual=null,tabActual='lista';
+let audioCtx=null;
+
+function login(){
+  const user=document.getElementById('inp-user').value.trim().toLowerCase();
+  const pass=document.getElementById('inp-pass').value;
+  const err=document.getElementById('login-error');
+  if(USUARIOS[user]&&USUARIOS[user].pass===pass){
+    usuarioActual={nombre:user,rol:USUARIOS[user].rol};
+    document.getElementById('login-screen').style.display='none';
+    document.getElementById('app').style.display='block';
+    document.getElementById('user-tag').textContent=user;
+    err.style.display='none';
+    initApp();
+  }else{
+    err.style.display='block';
+  }
+}
+
+function logout(){
+  usuarioActual=null;
+  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('app').style.display='none';
+  if(sb)sb.removeAllChannels();
+}
+
+async function initApp(){
+  sb=supabase.createClient(SUPA_URL,SUPA_KEY);
+  await cargarPedidos();
+  suscribirRealtime();
+}
+
+async function cargarPedidos(){
+  try{
+    const hoy=new Date();hoy.setHours(0,0,0,0);
+    const{data}=await sb.from('pedidos')
+      .select('*, clientes(nombre, telefono)')
+      .gte('creado_en',hoy.toISOString())
+      .order('creado_en',{ascending:false});
+    pedidos=data||[];
+    await cargarItems();
+    renderTodo();
+  }catch(e){console.error(e);}
+}
+
+async function cargarItems(){
+  if(!pedidos.length)return;
+  const ids=pedidos.map(p=>p.id);
+  const{data:items}=await sb.from('pedido_items')
+    .select('*, productos(nombre)')
+    .in('pedido_id',ids);
+  pedidos.forEach(p=>{p._items=(items||[]).filter(i=>i.pedido_id===p.id);});
+}
+
+function suscribirRealtime(){
+  sb.channel('pedidos-realtime')
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'pedidos'},async(payload)=>{
+      const nuevo=payload.new;
+      const{data:cliente}=await sb.from('clientes').select('nombre,telefono').eq('id',nuevo.cliente_id).single();
+      const{data:items}=await sb.from('pedido_items').select('*, productos(nombre)').eq('pedido_id',nuevo.id);
+      nuevo.clientes=cliente;nuevo._items=items||[];nuevo._esNuevo=true;
+      pedidos.unshift(nuevo);
+      renderTodo();
+      mostrarNotifNuevo(nuevo);
+      sonarAlarma();
+      document.getElementById('badge-nuevo').classList.add('visible');
+      setTimeout(()=>document.getElementById('badge-nuevo').classList.remove('visible'),8000);
+    })
+    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'pedidos'},async(payload)=>{
+      const idx=pedidos.findIndex(p=>p.id===payload.new.id);
+      if(idx>=0){pedidos[idx]={...pedidos[idx],...payload.new};renderTodo();}
+    })
+    .subscribe();
+}
+
+function sonarAlarma(){
+  try{
+    if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+    const tiempos=[0,.3,.6];
+    tiempos.forEach(t=>{
+      const osc=audioCtx.createOscillator();
+      const gain=audioCtx.createGain();
+      osc.connect(gain);gain.connect(audioCtx.destination);
+      osc.frequency.value=880;osc.type='sine';
+      gain.gain.setValueAtTime(0,audioCtx.currentTime+t);
+      gain.gain.linearRampToValueAtTime(.4,audioCtx.currentTime+t+.05);
+      gain.gain.linearRampToValueAtTime(0,audioCtx.currentTime+t+.25);
+      osc.start(audioCtx.currentTime+t);osc.stop(audioCtx.currentTime+t+.3);
+    });
+  }catch(e){}
+}
+
+function mostrarNotifNuevo(p){
+  const toast=document.getElementById('notif-toast');
+  document.getElementById('notif-titulo').textContent='🛵 Nuevo pedido #'+p.id.slice(-6).toUpperCase();
+  document.getElementById('notif-body').textContent=`${p.clientes?.nombre||'Cliente'} · ${p.tipo==='domicilio'?'Domicilio':'Recoger'} · $${Math.round(p.total)}`;
+  toast.classList.add('visible');
+  setTimeout(()=>toast.classList.remove('visible'),6000);
+}
+
+function renderTodo(){
+  actualizarStats();
+  if(tabActual==='lista')renderLista();
+  else renderKanban();
+}
+
+function actualizarStats(){
+  const total=pedidos.length;
+  const pend=pedidos.filter(p=>['recibido','preparando'].includes(p.estado)).length;
+  const camino=pedidos.filter(p=>p.estado==='en_camino').length;
+  const ventas=pedidos.filter(p=>p.estado!=='cancelado').reduce((s,p)=>s+Number(p.total),0);
+  document.getElementById('stat-hoy').textContent=total;
+  document.getElementById('stat-pend').textContent=pend;
+  document.getElementById('stat-camino').textContent=camino;
+  document.getElementById('stat-ventas').textContent='$'+Math.round(ventas).toLocaleString();
+}
+
+function filtrar(estado,btn){
+  filtroActual=estado;
+  document.querySelectorAll('.filtro-btn').forEach(b=>b.classList.remove('activo'));
+  btn.classList.add('activo');
+  renderLista();
+}
+
+function renderLista(){
+  const cont=document.getElementById('pedidos-lista');
+  const filtrados=filtroActual==='todos'?pedidos:pedidos.filter(p=>p.estado===filtroActual);
+  if(!filtrados.length){cont.innerHTML='<div class="empty-state">Sin pedidos por ahora</div>';return;}
+  cont.innerHTML=filtrados.map(p=>cardPedido(p)).join('');
+}
+
+function cardPedido(p){
+  const esAdmin=usuarioActual?.rol==='admin';
+  const acciones=accionesPedido(p,esAdmin);
+  const items=p._items||[];
+  const itemsHTML=items.map(i=>`<div class="pedido-item-row"><span class="pedido-item-nombre">${i.cantidad}x ${i.productos?.nombre||'Producto'}</span><span class="pedido-item-precio">$${Math.round(i.subtotal)}</span></div>`).join('');
+  return `<div class="pedido-card ${p._esNuevo?'nuevo':''}" id="card-${p.id}">
+    <div class="pedido-header" onclick="toggleCard('${p.id}')">
+      <div>
+        <div class="pedido-id">#${p.id.slice(-6).toUpperCase()} · ${formatHora(p.creado_en)}</div>
+        <div class="pedido-cliente">${p.clientes?.nombre||'Cliente'} · ${p.clientes?.telefono||''}</div>
+      </div>
+      <div class="pedido-meta">
+        <span class="chip ${p.tipo==='domicilio'?'chip-domicilio':'chip-recoger'}">${p.tipo==='domicilio'?'🛵 Domicilio':'🏠 Recoger'}</span>
+        <span class="chip ${p.pago==='efectivo'?'chip-efectivo':'chip-mp'}">${p.pago==='efectivo'?'💵':'📱'}</span>
+        <span class="chip-estado estado-${p.estado}">${labelEstado(p.estado)}</span>
+        <span class="pedido-total">$${Math.round(p.total)}</span>
+      </div>
+    </div>
+    <div class="pedido-body" id="body-${p.id}">
+      ${p.direccion_entrega?`<div class="pedido-dir">📍 ${p.direccion_entrega}</div>`:''}
+      ${p.notas?`<div class="pedido-notas">📝 ${p.notas}</div>`:''}
+      <div class="pedido-items">${itemsHTML}</div>
+      ${acciones}
+    </div>
+  </div>`;
+}
+
+function accionesPedido(p,esAdmin){
+  if(p.estado==='entregado'||p.estado==='cancelado')return '';
+  let btns='<div class="acciones">';
+  if(p.estado==='recibido')btns+=`<button class="accion-btn btn-preparando" onclick="cambiarEstado('${p.id}','preparando')">Preparando</button>`;
+  if(p.estado==='preparando'){
+    if(p.tipo==='domicilio')btns+=`<button class="accion-btn btn-camino" onclick="cambiarEstado('${p.id}','en_camino')">En camino</button>`;
+    else btns+=`<button class="accion-btn btn-listo" onclick="cambiarEstado('${p.id}','listo')">Listo para recoger</button>`;
+  }
+  if(p.estado==='en_camino'||p.estado==='listo')btns+=`<button class="accion-btn btn-entregado" onclick="cambiarEstado('${p.id}','entregado')">Entregado</button>`;
+  if(esAdmin&&p.estado!=='entregado')btns+=`<button class="accion-btn btn-cancelar" onclick="cambiarEstado('${p.id}','cancelado')">Cancelar</button>`;
+  btns+='</div>';
+  return btns;
+}
+
+function renderKanban(){
+  const cols=[
+    {id:'recibido',label:'RECIBIDO',color:'#e06060'},
+    {id:'preparando',label:'PREPARANDO',color:'#d4a843'},
+    {id:'en_camino',label:'EN CAMINO',color:'#6fa3e0'},
+    {id:'entregado',label:'ENTREGADO',color:'#5cb87a'}
+  ];
+  const board=document.getElementById('kanban-board');
+  board.innerHTML=cols.map(col=>{
+    const items=pedidos.filter(p=>p.estado===col.id||(col.id==='en_camino'&&p.estado==='listo'));
+    return `<div class="kanban-col">
+      <div class="kanban-header">
+        <span class="kanban-titulo" style="color:${col.color}">${col.label}</span>
+        <span class="kanban-count">${items.length}</span>
+      </div>
+      <div class="kanban-items">
+        ${items.length?items.map(p=>`<div class="kanban-card ${p._esNuevo?'nuevo':''}" onclick="cambiarTab('lista',document.querySelectorAll('.tab-btn')[0]);setTimeout(()=>toggleCard('${p.id}'),100)">
+          <div class="kanban-nombre">${p.clientes?.nombre||'Cliente'}</div>
+          <div class="kanban-detalle">${p.tipo==='domicilio'?'🛵 Domicilio':'🏠 Recoger'} · ${p.pago==='efectivo'?'💵 Efectivo':'📱 MP'}<br>#${p.id.slice(-6).toUpperCase()} · ${formatHora(p.creado_en)}</div>
+          <div class="kanban-total">$${Math.round(p.total)}</div>
+        </div>`).join(''):'<div class="kanban-vacio">vacío</div>'}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function cambiarEstado(id,estado){
+  await sb.from('pedidos').update({estado}).eq('id',id);
+  const idx=pedidos.findIndex(p=>p.id===id);
+  if(idx>=0){pedidos[idx].estado=estado;pedidos[idx]._esNuevo=false;}
+  renderTodo();
+}
+
+function toggleCard(id){
+  const body=document.getElementById('body-'+id);
+  if(body)body.classList.toggle('abierto');
+  const card=document.getElementById('card-'+id);
+  if(card)card.querySelector('.pedido-card')?.classList.remove('nuevo');
+}
+
+function cambiarTab(tab,btn){
+  tabActual=tab;
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('activo'));
+  btn.classList.add('activo');
+  document.getElementById('vista-lista').classList.toggle('activa',tab==='lista');
+  document.getElementById('vista-kanban').classList.toggle('activa',tab==='kanban');
+  renderTodo();
+}
+
+function labelEstado(e){const m={'recibido':'Recibido','preparando':'Preparando','en_camino':'En camino','listo':'Listo','entregado':'Entregado','cancelado':'Cancelado'};return m[e]||e;}
+function formatHora(ts){if(!ts)return '';const d=new Date(ts);return d.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});}
+</script>
+</body>
+</html>
