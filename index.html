@@ -327,7 +327,7 @@ function confirmarVariante(pid){
 function agregarDirecto(id,nombre,precio,emoji,variante){agregarAlCarrito(id,nombre,precio,emoji,variante);}
 function agregarAlCarrito(id,nombre,precio,emoji,variante){
   const ex=carrito.find(i=>i.key===id);
-  if(ex)ex.cantidad++;else carrito.push({key:id,id:id.split('-')[0],nombre,precio,emoji,variante,cantidad:1});
+  if(ex)ex.cantidad++;else carrito.push({key:id,id:id.length>36?id.substring(0,36):id,nombre,precio,emoji,variante,cantidad:1});
   actualizarBadge();mostrarNotif(`${nombre}${variante?' · '+variante:''} agregado`);
 }
 function actualizarBadge(){document.getElementById('badge').textContent=carrito.reduce((s,i)=>s+i.cantidad,0);}
