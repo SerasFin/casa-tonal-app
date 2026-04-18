@@ -350,7 +350,8 @@ async function hacerPedido(){
   if(tipoEntrega==='domicilio'&&!dir){mostrarNotif('Ingresa tu dirección');return}
   const btn=document.getElementById('btn-pedir');btn.disabled=true;btn.textContent='Enviando pedido...';
   try{
-    let{data:cliente}=await sb.from('clientes').select('id').eq('telefono',tel).single().catch(()=>({data:null}));
+    let{data:cliente,error:errCliente}=await sb.from('clientes').select('id').eq('telefono',tel).single();
+if(errCliente)cliente=null;
     if(!cliente){const{data:nc}=await sb.from('clientes').insert({nombre,telefono:tel,direccion:dir||null}).select('id').single();cliente=nc;}
     const total=carrito.reduce((s,i)=>s+(i.precio*i.cantidad),0);
     const{data:pedido}=await sb.from('pedidos').insert({cliente_id:cliente.id,tipo:tipoEntrega,pago:tipoPago,direccion_entrega:dir||null,total,notas:notas||null}).select('id').single();
