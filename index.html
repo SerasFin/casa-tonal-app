@@ -357,7 +357,7 @@ async function hacerPedido(){
     await sb.from('pedido_items').insert(carrito.map(i=>({pedido_id:pedido.id,producto_id:i.id,cantidad:i.cantidad,precio_unitario:i.precio,subtotal:i.precio*i.cantidad})));
     pedidoActivo=pedido.id;carrito=[];actualizarBadge();cerrarCarrito();mostrarNotif('¡Pedido enviado!');
     cambiarVista('pedido',document.querySelectorAll('.tab')[1]);mostrarEstadoPedido(pedido.id);
-  }catch(e){mostrarNotif('Error al enviar. Intenta de nuevo.');}
+  }catch(e){console.error('ERROR hacerPedido:',e);console.error('mensaje:',e.message);console.error('stack:',e.stack);mostrarNotif('Error al enviar. Intenta de nuevo.');}
   finally{btn.disabled=false;btn.textContent='Hacer pedido';}
 }
 async function mostrarEstadoPedido(pedidoId){
