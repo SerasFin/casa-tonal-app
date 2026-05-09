@@ -388,6 +388,7 @@ async function mostrarEstadoPedido(pedidoId){
 
 let realtimeCliente=null;
 function suscribirRealtimeCliente(pedidoId){
+  if(!sb){setTimeout(()=>suscribirRealtimeCliente(pedidoId),500);return;}
   if(realtimeCliente)sb.removeChannel(realtimeCliente);
   realtimeCliente=sb.channel('pedido-'+pedidoId)
     .on('postgres_changes',{event:'UPDATE',schema:'public',table:'pedidos',filter:`id=eq.${pedidoId}`},async(payload)=>{
