@@ -222,6 +222,7 @@ async function init(){
     // Si hay pedido guardado, ir directo a la pestaña Mi pedido
     if(pedidoActivo){
       cambiarVista('pedido',document.querySelectorAll('.tab')[1]);
+      suscribirRealtimeCliente(pedidoActivo);
     }
   }catch(e){
     document.getElementById('menu-contenido').innerHTML='<div class="empty-state"><span class="big">☕</span><p>Sin conexión al menú.<br>Verifica tu internet e intenta de nuevo.</p></div>';
@@ -364,7 +365,9 @@ async function hacerPedido(){
     pedidoActivo=pedido.id;
     try{localStorage.setItem('ct_pedido_id',pedido.id);}catch(e){}
     carrito=[];actualizarBadge();cerrarCarrito();mostrarNotif('¡Pedido enviado!');
-    cambiarVista('pedido',document.querySelectorAll('.tab')[1]);mostrarEstadoPedido(pedido.id);
+    cambiarVista('pedido',document.querySelectorAll('.tab')[1]);
+    mostrarEstadoPedido(pedido.id);
+    suscribirRealtimeCliente(pedido.id);
   }catch(e){mostrarNotif('Error al enviar. Intenta de nuevo.');}
   finally{btn.disabled=false;btn.textContent='Hacer pedido';}
 }
@@ -377,10 +380,23 @@ async function mostrarEstadoPedido(pedidoId){
     const idxActual=pasos.findIndex(s=>s.id===p.estado);
     let html=`<div class="estado-panel"><h3 class="estado-titulo">Estado de tu pedido</h3><div style="background:var(--crema);border-radius:var(--radio);padding:1rem;margin-bottom:1.25rem"><p style="font-size:12px;color:var(--texto-suave);margin-bottom:.25rem">Pedido #${p.id.slice(-6).toUpperCase()}</p><p style="font-size:13px;font-weight:500">${p.tipo==='domicilio'?'Entrega a domicilio':'Recoger en tienda'} · ${p.pago==='efectivo'?'Efectivo':'MercadoPago'}</p><p style="font-size:20px;font-weight:600;color:var(--cafe);font-family:Playfair Display,serif;margin-top:.25rem">$${Math.round(p.total)}</p></div>`;
     for(let i=0;i<pasos.length;i++){const paso=pasos[i],completo=i<idxActual,activo=i===idxActual;html+=`<div class="estado-paso"><div class="paso-circulo ${completo?'completo':activo?'activo':''}">${completo?'✓':paso.icon}</div><div class="paso-info"><div class="paso-nombre" style="color:${activo?'var(--cafe)':completo?'var(--verde)':'var(--texto-suave)'}">${paso.nombre}</div>${activo?`<div class="paso-desc">${paso.desc}</div>`:''}</div></div>`;if(i<pasos.length-1)html+=`<div class="estado-linea ${completo?'completo':''}"></div>`;}
-    if(p.estado!=='entregado'&&p.estado!=='cancelado')html+=`<button style="width:100%;margin-top:1.5rem;padding:.75rem;border-radius:50px;border:1px solid var(--crema-dark);background:transparent;font-family:DM Sans,sans-serif;font-size:14px;cursor:pointer;color:var(--texto-suave)" onclick="mostrarEstadoPedido('${pedidoId}')">Actualizar estado</button>`;
+    if(p.estado!=='entregado'&&p.estado!=='cancelado')html+=`<div style="margin-top:1rem;padding:.65rem 1rem;background:var(--crema);border-radius:50px;font-size:12px;color:var(--texto-suave);text-align:center">🔄 Esta página se actualiza automáticamente</div>`;
     else{try{localStorage.removeItem('ct_pedido_id');}catch(e){}}
     html+='</div>';cont.innerHTML=html;
   }catch(e){cont.innerHTML='<div class="empty-state"><span class="big">🧾</span><p>No tienes pedidos activos</p></div>';}
+}
+
+let realtimeCliente=null;
+function suscribirRealtimeCliente(pedidoId){
+  if(realtimeCliente)sb.removeChannel(realtimeCliente);
+  realtimeCliente=sb.channel('pedido-'+pedidoId)
+    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'pedidos',filter:`id=eq.${pedidoId}`},async(payload)=>{
+      const nuevoEstado=payload.new.estado;
+      const labels={'preparando':'🍳 Tu pedido se está preparando','en_camino':'🛵 Tu pedido va en camino','listo':'✅ Tu pedido está listo para recoger','entregado':'🎉 ¡Pedido entregado! Buen provecho','cancelado':'❌ Tu pedido fue cancelado'};
+      if(labels[nuevoEstado])mostrarNotif(labels[nuevoEstado]);
+      await mostrarEstadoPedido(pedidoId);
+    })
+    .subscribe();
 }
 function cambiarVista(vista,btn){
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('activo'));btn.classList.add('activo');
