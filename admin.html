@@ -156,8 +156,14 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--texto);mi
 
 <!-- NOTIF TOAST -->
 <div class="notif-toast" id="notif-toast">
-  <div class="notif-titulo" id="notif-titulo">Nuevo pedido</div>
-  <div class="notif-body" id="notif-body"></div>
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem">
+    <div>
+      <div class="notif-titulo" id="notif-titulo">Nuevo pedido</div>
+      <div class="notif-body" id="notif-body"></div>
+    </div>
+    <button onclick="document.getElementById('notif-toast').classList.remove('visible')" style="background:rgba(245,237,214,.15);border:none;border-radius:50%;width:24px;height:24px;color:var(--crema);cursor:pointer;font-size:14px;flex-shrink:0;display:flex;align-items:center;justify-content:center">✕</button>
+  </div>
+  <button onclick="document.getElementById('notif-toast').classList.remove('visible')" style="margin-top:.75rem;width:100%;padding:.5rem;background:var(--cafe-light);border:none;border-radius:var(--radio-sm);color:var(--crema);font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;font-weight:500">Ver pedido ✓</button>
 </div>
 
 <!-- APP -->
@@ -326,7 +332,7 @@ function mostrarNotifNuevo(p){
   document.getElementById('notif-titulo').textContent='🛵 Nuevo pedido #'+p.id.slice(-6).toUpperCase();
   document.getElementById('notif-body').textContent=`${p.clientes?.nombre||'Cliente'} · ${p.tipo==='domicilio'?'Domicilio':'Recoger'} · $${Math.round(p.total)}`;
   toast.classList.add('visible');
-  setTimeout(()=>toast.classList.remove('visible'),6000);
+  // No desaparece automáticamente — el usuario debe cerrarlo
 }
 
 function renderTodo(){
