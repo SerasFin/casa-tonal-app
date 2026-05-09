@@ -205,7 +205,9 @@ const MAPS_KEY='AIzaSyDS0WLFnZ5B18EQyVYQZxnywUuinI0tIRs';
 const SUPA_URL='https://icoikvoemymknqzsegxr.supabase.co';
 const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imljb2lrdm9lbXlta25xenNlZ3hyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3MjMwNTYsImV4cCI6MjA5MDI5OTA1Nn0.Hr4dmj1D_a7zZVNQDomqFSbyUzaB0lfYV8yhHiu8sps';
 
-let sb,carrito=[],tipoEntrega='domicilio',tipoPago='efectivo',pedidoActivo=null,debounce=null;
+let sb,carrito=[],tipoEntrega='domicilio',tipoPago='efectivo',debounce=null;
+let pedidoActivo=null;
+try{pedidoActivo=localStorage.getItem('ct_pedido_id')||null;}catch(e){}
 
 const EMOJIS={'espresso':'☕','lungo':'☕','americano':'☕','black long':'☕','latte':'☕','flat white':'☕','macchiato':'☕','capuccino':'☕','moka':'☕','chocolate caliente':'🍫','té':'🍵','tisana':'🌿','affogato':'🍨','iced':'🧊','brisa':'🥥','limonada':'🍹','marea':'💙','soda':'🫧','frappé':'🧋','malteada':'🥛','cuernito':'🥐','torta':'🥪','club sandwich':'🥪','molletes':'🍞','waffle':'🧇','extra':'➕','pay':'🥧','chocoflan':'🍮','flan':'🍮','cheesecake':'🎂'};
 function getEmoji(n){const k=n.toLowerCase();for(const[e,v]of Object.entries(EMOJIS)){if(k.includes(e))return v}return'🍽️'}
@@ -217,6 +219,10 @@ async function init(){
   try{
     sb=supabase.createClient(SUPA_URL,SUPA_KEY);
     await cargarMenu();
+    // Si hay pedido guardado, ir directo a la pestaña Mi pedido
+    if(pedidoActivo){
+      cambiarVista('pedido',document.querySelectorAll('.tab')[1]);
+    }
   }catch(e){
     document.getElementById('menu-contenido').innerHTML='<div class="empty-state"><span class="big">☕</span><p>Sin conexión al menú.<br>Verifica tu internet e intenta de nuevo.</p></div>';
   }
@@ -327,7 +333,7 @@ function confirmarVariante(pid){
 function agregarDirecto(id,nombre,precio,emoji,variante){agregarAlCarrito(id,nombre,precio,emoji,variante);}
 function agregarAlCarrito(id,nombre,precio,emoji,variante){
   const ex=carrito.find(i=>i.key===id);
-  if(ex)ex.cantidad++;else carrito.push({key:id,id:id.length>36?id.substring(0,36):id,nombre,precio,emoji,variante,cantidad:1});
+  if(ex)ex.cantidad++;else carrito.push({key:id,id:id.split('-')[0],nombre,precio,emoji,variante,cantidad:1});
   actualizarBadge();mostrarNotif(`${nombre}${variante?' · '+variante:''} agregado`);
 }
 function actualizarBadge(){document.getElementById('badge').textContent=carrito.reduce((s,i)=>s+i.cantidad,0);}
@@ -350,15 +356,16 @@ async function hacerPedido(){
   if(tipoEntrega==='domicilio'&&!dir){mostrarNotif('Ingresa tu dirección');return}
   const btn=document.getElementById('btn-pedir');btn.disabled=true;btn.textContent='Enviando pedido...';
   try{
-    let{data:cliente,error:errCliente}=await sb.from('clientes').select('id').eq('telefono',tel).single();
-if(errCliente)cliente=null;
-    if(!cliente){const{data:nc}=await sb.from('clientes').insert({nombre,telefono:tel,direccion:dir||null}).select('id').single();cliente=nc;}
+    let{data:cliente,error:errCli}=await sb.from('clientes').select('id').eq('telefono',tel).single();
+    if(errCli||!cliente){const{data:nc}=await sb.from('clientes').insert({nombre,telefono:tel,direccion:dir||null}).select('id').single();cliente=nc;}
     const total=carrito.reduce((s,i)=>s+(i.precio*i.cantidad),0);
     const{data:pedido}=await sb.from('pedidos').insert({cliente_id:cliente.id,tipo:tipoEntrega,pago:tipoPago,direccion_entrega:dir||null,total,notas:notas||null}).select('id').single();
     await sb.from('pedido_items').insert(carrito.map(i=>({pedido_id:pedido.id,producto_id:i.id,cantidad:i.cantidad,precio_unitario:i.precio,subtotal:i.precio*i.cantidad})));
-    pedidoActivo=pedido.id;carrito=[];actualizarBadge();cerrarCarrito();mostrarNotif('¡Pedido enviado!');
+    pedidoActivo=pedido.id;
+    try{localStorage.setItem('ct_pedido_id',pedido.id);}catch(e){}
+    carrito=[];actualizarBadge();cerrarCarrito();mostrarNotif('¡Pedido enviado!');
     cambiarVista('pedido',document.querySelectorAll('.tab')[1]);mostrarEstadoPedido(pedido.id);
-  }catch(e){console.error('ERROR hacerPedido:',e);console.error('mensaje:',e.message);console.error('stack:',e.stack);mostrarNotif('Error al enviar. Intenta de nuevo.');}
+  }catch(e){mostrarNotif('Error al enviar. Intenta de nuevo.');}
   finally{btn.disabled=false;btn.textContent='Hacer pedido';}
 }
 async function mostrarEstadoPedido(pedidoId){
@@ -371,6 +378,7 @@ async function mostrarEstadoPedido(pedidoId){
     let html=`<div class="estado-panel"><h3 class="estado-titulo">Estado de tu pedido</h3><div style="background:var(--crema);border-radius:var(--radio);padding:1rem;margin-bottom:1.25rem"><p style="font-size:12px;color:var(--texto-suave);margin-bottom:.25rem">Pedido #${p.id.slice(-6).toUpperCase()}</p><p style="font-size:13px;font-weight:500">${p.tipo==='domicilio'?'Entrega a domicilio':'Recoger en tienda'} · ${p.pago==='efectivo'?'Efectivo':'MercadoPago'}</p><p style="font-size:20px;font-weight:600;color:var(--cafe);font-family:Playfair Display,serif;margin-top:.25rem">$${Math.round(p.total)}</p></div>`;
     for(let i=0;i<pasos.length;i++){const paso=pasos[i],completo=i<idxActual,activo=i===idxActual;html+=`<div class="estado-paso"><div class="paso-circulo ${completo?'completo':activo?'activo':''}">${completo?'✓':paso.icon}</div><div class="paso-info"><div class="paso-nombre" style="color:${activo?'var(--cafe)':completo?'var(--verde)':'var(--texto-suave)'}">${paso.nombre}</div>${activo?`<div class="paso-desc">${paso.desc}</div>`:''}</div></div>`;if(i<pasos.length-1)html+=`<div class="estado-linea ${completo?'completo':''}"></div>`;}
     if(p.estado!=='entregado'&&p.estado!=='cancelado')html+=`<button style="width:100%;margin-top:1.5rem;padding:.75rem;border-radius:50px;border:1px solid var(--crema-dark);background:transparent;font-family:DM Sans,sans-serif;font-size:14px;cursor:pointer;color:var(--texto-suave)" onclick="mostrarEstadoPedido('${pedidoId}')">Actualizar estado</button>`;
+    else{try{localStorage.removeItem('ct_pedido_id');}catch(e){}}
     html+='</div>';cont.innerHTML=html;
   }catch(e){cont.innerHTML='<div class="empty-state"><span class="big">🧾</span><p>No tienes pedidos activos</p></div>';}
 }
