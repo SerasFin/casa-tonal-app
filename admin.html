@@ -219,18 +219,24 @@ function login(){
   const err=document.getElementById('login-error');
   if(USUARIOS[user]&&USUARIOS[user].pass===pass){
     usuarioActual={nombre:user,rol:USUARIOS[user].rol};
-    document.getElementById('login-screen').style.display='none';
-    document.getElementById('app').style.display='block';
-    document.getElementById('user-tag').textContent=user;
-    err.style.display='none';
+    try{localStorage.setItem('ct_admin_user',JSON.stringify(usuarioActual));}catch(e){}
+    mostrarApp();
     initApp();
   }else{
     err.style.display='block';
   }
 }
 
+function mostrarApp(){
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app').style.display='block';
+  document.getElementById('user-tag').textContent=usuarioActual.nombre;
+  document.getElementById('login-error').style.display='none';
+}
+
 function logout(){
   usuarioActual=null;
+  try{localStorage.removeItem('ct_admin_user');}catch(e){}
   document.getElementById('login-screen').style.display='flex';
   document.getElementById('app').style.display='none';
   if(sb)sb.removeAllChannels();
@@ -241,6 +247,19 @@ async function initApp(){
   await cargarPedidos();
   suscribirRealtime();
 }
+
+// Recuperar sesión al cargar
+(function(){
+  try{
+    const saved=localStorage.getItem('ct_admin_user');
+    if(saved){
+      usuarioActual=JSON.parse(saved);
+      mostrarApp();
+      // initApp se llama después de que el DOM cargue
+      document.addEventListener('DOMContentLoaded',()=>initApp());
+    }
+  }catch(e){}
+})();
 
 async function cargarPedidos(){
   try{
