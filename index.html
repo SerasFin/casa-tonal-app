@@ -207,7 +207,16 @@ const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 
 let sb,carrito=[],tipoEntrega='domicilio',tipoPago='efectivo',debounce=null;
 let pedidoActivo=null;
-try{pedidoActivo=localStorage.getItem('ct_pedido_id')||null;}catch(e){}
+try{
+  const savedId=localStorage.getItem('ct_pedido_id');
+  const savedDate=localStorage.getItem('ct_pedido_date');
+  if(savedId&&savedDate){
+    // Fecha actual en México (UTC-6)
+    const hoyMex=new Date().toLocaleDateString('es-MX',{timeZone:'America/Mexico_City'});
+    if(savedDate===hoyMex)pedidoActivo=savedId;
+    else{localStorage.removeItem('ct_pedido_id');localStorage.removeItem('ct_pedido_date');}
+  }
+}catch(e){}
 
 const EMOJIS={'espresso':'☕','lungo':'☕','americano':'☕','black long':'☕','latte':'☕','flat white':'☕','macchiato':'☕','capuccino':'☕','moka':'☕','chocolate caliente':'🍫','té':'🍵','tisana':'🌿','affogato':'🍨','iced':'🧊','brisa':'🥥','limonada':'🍹','marea':'💙','soda':'🫧','frappé':'🧋','malteada':'🥛','cuernito':'🥐','torta':'🥪','club sandwich':'🥪','molletes':'🍞','waffle':'🧇','extra':'➕','pay':'🥧','chocoflan':'🍮','flan':'🍮','cheesecake':'🎂'};
 function getEmoji(n){const k=n.toLowerCase();for(const[e,v]of Object.entries(EMOJIS)){if(k.includes(e))return v}return'🍽️'}
@@ -363,7 +372,11 @@ async function hacerPedido(){
     const{data:pedido}=await sb.from('pedidos').insert({cliente_id:cliente.id,tipo:tipoEntrega,pago:tipoPago,direccion_entrega:dir||null,total,notas:notas||null}).select('id').single();
     await sb.from('pedido_items').insert(carrito.map(i=>({pedido_id:pedido.id,producto_id:i.id,cantidad:i.cantidad,precio_unitario:i.precio,subtotal:i.precio*i.cantidad})));
     pedidoActivo=pedido.id;
-    try{localStorage.setItem('ct_pedido_id',pedido.id);}catch(e){}
+    try{
+  const hoyMex=new Date().toLocaleDateString('es-MX',{timeZone:'America/Mexico_City'});
+  localStorage.setItem('ct_pedido_id',pedido.id);
+  localStorage.setItem('ct_pedido_date',hoyMex);
+}catch(e){}
     carrito=[];actualizarBadge();cerrarCarrito();mostrarNotif('¡Pedido enviado!');
     cambiarVista('pedido',document.querySelectorAll('.tab')[1]);
     mostrarEstadoPedido(pedido.id);
