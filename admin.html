@@ -284,7 +284,7 @@ async function cargarItems(){
   if(!pedidos.length)return;
   const ids=pedidos.map(p=>p.id);
   const{data:items}=await sb.from('pedido_items')
-    .select('*, productos(nombre)')
+    .select('*, productos!pedido_items_producto_id_fkey(nombre)')
     .in('pedido_id',ids);
   pedidos.forEach(p=>{p._items=(items||[]).filter(i=>i.pedido_id===p.id);});
 }
