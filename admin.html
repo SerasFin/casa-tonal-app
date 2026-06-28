@@ -459,6 +459,84 @@ function cambiarTab(tab,btn){
 
 function labelEstado(e){const m={'recibido':'Recibido','preparando':'Preparando','en_camino':'En camino','listo':'Listo','entregado':'Entregado','cancelado':'Cancelado'};return m[e]||e;}
 function formatHora(ts){if(!ts)return '';const d=new Date(ts);return d.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});}
+
+// =====================
+// REPORTE DIARIO CSV
+// =====================
+function descargarCSV(contenido,nombreArchivo){
+  const blob=new Blob(['\uFEFF'+contenido],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=nombreArchivo;a.click();
+  URL.revokeObjectURL(url);
+}
+
+async function generarReportes(){
+  const hoy=new Date();hoy.setHours(0,0,0,0);
+  const fecha=hoy.toLocaleDateString('es-MX',{timeZone:'America/Mexico_City'}).replace(/\//g,'-');
+
+  const{data:pedidosHoy}=await sb.from('pedidos')
+    .select('*, clientes(telefono)')
+    .gte('creado_en',hoy.toISOString())
+    .neq('estado','cancelado')
+    .order('creado_en',{ascending:true});
+
+  if(!pedidosHoy?.length){console.log('Sin pedidos hoy para reportar');return;}
+
+  // Reporte 1 — Ventas
+  let csv1='#Pedido,Hora,Pago,Estado,Total\n';
+  let totalDia=0;
+  for(const p of pedidosHoy){
+    const hora=formatHora(p.creado_en);
+    csv1+=`#${p.id.slice(-6).toUpperCase()},${hora},${p.pago},${p.estado},$${Math.round(p.total)}\n`;
+    totalDia+=Number(p.total);
+  }
+  csv1+=`\nTOTAL DEL DÍA,,,,$${Math.round(totalDia)}\n`;
+  csv1+=`PEDIDOS,,,${pedidosHoy.length},\n`;
+  descargarCSV(csv1,`ventas_${fecha}.csv`);
+
+  // Reporte 2 — Productos
+  const ids=pedidosHoy.map(p=>p.id);
+  const{data:items}=await sb.from('pedido_items')
+    .select('*, productos!pedido_items_producto_id_fkey(nombre)')
+    .in('pedido_id',ids);
+
+  const conteo={};
+  for(const item of items||[]){
+    const nombre=item.productos?.nombre||'Desconocido';
+    if(!conteo[nombre])conteo[nombre]={cantidad:0,total:0};
+    conteo[nombre].cantidad+=item.cantidad;
+    conteo[nombre].total+=Number(item.subtotal);
+  }
+  const ordenados=Object.entries(conteo).sort((a,b)=>b[1].cantidad-a[1].cantidad);
+  let csv2='Producto,Unidades Vendidas,Total Generado\n';
+  for(const[nombre,data]of ordenados){
+    csv2+=`${nombre},${data.cantidad},$${Math.round(data.total)}\n`;
+  }
+  descargarCSV(csv2,`productos_${fecha}.csv`);
+  mostrarNotifReporte();
+}
+
+function mostrarNotifReporte(){
+  const n=document.getElementById('notif-toast');
+  document.getElementById('notif-titulo').textContent='📊 Reporte generado';
+  document.getElementById('notif-body').textContent='Revisa tus descargas — ventas y productos del día';
+  n.classList.add('visible');
+}
+
+// Programar reporte a las 10 PM
+function programarReporte(){
+  const ahora=new Date();
+  const objetivo=new Date();
+  objetivo.setHours(22,0,0,0);
+  if(ahora>=objetivo)objetivo.setDate(objetivo.getDate()+1);
+  const ms=objetivo-ahora;
+  console.log(`Reporte programado en ${Math.round(ms/60000)} minutos`);
+  setTimeout(()=>{
+    generarReportes();
+    setInterval(generarReportes,24*60*60*1000);
+  },ms);
+}
 </script>
 </body>
 </html>
