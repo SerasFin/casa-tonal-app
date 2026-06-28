@@ -460,7 +460,11 @@ function cambiarTab(tab,btn){
 }
 
 function labelEstado(e){const m={'recibido':'Recibido','preparando':'Preparando','en_camino':'En camino','listo':'Listo','entregado':'Entregado','cancelado':'Cancelado'};return m[e]||e;}
-function formatHora(ts){if(!ts)return '';const d=new Date(ts);return d.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});}
+function formatHora(p){
+  if(p.creado_en_local)return p.creado_en_local.split(' ')[1]?.substring(0,5)||p.creado_en_local;
+  if(!p.creado_en)return '';
+  return new Date(p.creado_en).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
+}
 
 // =====================
 // REPORTE DIARIO CSV
