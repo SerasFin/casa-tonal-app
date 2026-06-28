@@ -173,6 +173,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--texto);mi
     <div class="header-right">
       <span class="badge-nuevo" id="badge-nuevo">● NUEVO PEDIDO</span>
       <span class="user-tag" id="user-tag"></span>
+      <button class="logout-btn" onclick="generarReportes()" style="border-color:rgba(245,237,214,.4)">📊 Reporte</button>
       <button class="logout-btn" onclick="logout()">Salir</button>
     </div>
   </div>
@@ -252,6 +253,7 @@ async function initApp(){
   sb=supabase.createClient(SUPA_URL,SUPA_KEY);
   await cargarPedidos();
   suscribirRealtime();
+  programarReporte();
 }
 
 // Recuperar sesión al cargar
