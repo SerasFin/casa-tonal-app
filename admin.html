@@ -376,7 +376,7 @@ function cardPedido(p){
   return `<div class="pedido-card ${p._esNuevo?'nuevo':''}" id="card-${p.id}">
     <div class="pedido-header" onclick="toggleCard('${p.id}')">
       <div>
-        <div class="pedido-id">#${p.id.slice(-6).toUpperCase()} · ${formatHora(p.creado_en)}</div>
+        <div class="pedido-id">#${p.id.slice(-6).toUpperCase()} · ${formatHora(p)}</div>
         <div class="pedido-cliente">${p.clientes?.nombre||'Cliente'} · ${p.clientes?.telefono||''}</div>
       </div>
       <div class="pedido-meta">
@@ -428,7 +428,7 @@ function renderKanban(){
       <div class="kanban-items">
         ${items.length?items.map(p=>`<div class="kanban-card ${p._esNuevo?'nuevo':''}" onclick="cambiarTab('lista',document.querySelectorAll('.tab-btn')[0]);setTimeout(()=>toggleCard('${p.id}'),100)">
           <div class="kanban-nombre">${p.clientes?.nombre||'Cliente'}</div>
-          <div class="kanban-detalle">${p.tipo==='domicilio'?'🛵 Domicilio':'🏠 Recoger'} · ${p.pago==='efectivo'?'💵 Efectivo':'📱 MP'}<br>#${p.id.slice(-6).toUpperCase()} · ${formatHora(p.creado_en)}</div>
+          <div class="kanban-detalle">${p.tipo==='domicilio'?'🛵 Domicilio':'🏠 Recoger'} · ${p.pago==='efectivo'?'💵 Efectivo':'📱 MP'}<br>#${p.id.slice(-6).toUpperCase()} · ${formatHora(p)}</div>
           <div class="kanban-total">$${Math.round(p.total)}</div>
         </div>`).join(''):'<div class="kanban-vacio">vacío</div>'}
       </div>
@@ -493,7 +493,7 @@ async function generarReportes(){
   let csv1='#Pedido,Hora,Pago,Estado,Total\n';
   let totalDia=0;
   for(const p of pedidosHoy){
-    const hora=formatHora(p.creado_en);
+    const hora=formatHora(p);
     csv1+=`#${p.id.slice(-6).toUpperCase()},${hora},${p.pago},${p.estado},$${Math.round(p.total)}\n`;
     totalDia+=Number(p.total);
   }
