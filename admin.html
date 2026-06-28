@@ -284,7 +284,7 @@ async function cargarItems(){
   if(!pedidos.length)return;
   const ids=pedidos.map(p=>p.id);
   const{data:items}=await sb.from('pedido_items')
-    .select('*, productos!pedido_items_producto_id_fkey(nombre)')
+    .select('*, productos(nombre)')
     .in('pedido_id',ids);
   pedidos.forEach(p=>{p._items=(items||[]).filter(i=>i.pedido_id===p.id);});
 }
@@ -412,11 +412,12 @@ function renderKanban(){
     {id:'recibido',label:'RECIBIDO',color:'#e06060'},
     {id:'preparando',label:'PREPARANDO',color:'#d4a843'},
     {id:'en_camino',label:'EN CAMINO',color:'#6fa3e0'},
-    {id:'entregado',label:'ENTREGADO',color:'#5cb87a'}
+    {id:'entregado',label:'ENTREGADO',color:'#5cb87a'},
+    {id:'cancelado',label:'CANCELADO',color:'#888'}
   ];
   const board=document.getElementById('kanban-board');
   board.innerHTML=cols.map(col=>{
-    const items=pedidos.filter(p=>p.estado===col.id||(col.id==='en_camino'&&p.estado==='listo'));
+    const items=pedidos.filter(p=>p.estado===col.id);
     return `<div class="kanban-col">
       <div class="kanban-header">
         <span class="kanban-titulo" style="color:${col.color}">${col.label}</span>
