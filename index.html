@@ -157,10 +157,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--blanco);color:var(--texto
             <div style="font-size:11px;color:var(--texto-suave)">Tu pedido estará listo para recoger en Casa Tonal</div>
           </div>
         </div>
-        <div class="campo">
-          <label>Teléfono</label>
-          <input type="tel" id="inp-tel" placeholder="Para avisarte cuando esté listo" />
-        </div>
         <p style="font-size:13px;font-weight:500;color:var(--texto-suave);margin:.75rem 0 .5rem">¿Cómo pagas?</p>
         <div class="pago-opciones">
           <button class="pago-btn sel" onclick="selPago('efectivo',this)">💵 Efectivo</button>
@@ -276,13 +272,10 @@ function renderCarrito(){
 function cambiarCant(key,delta){const idx=carrito.findIndex(i=>i.key===key);if(idx<0)return;carrito[idx].cantidad+=delta;if(carrito[idx].cantidad<=0)carrito.splice(idx,1);actualizarBadge();renderCarrito();}
 function selPago(tipo,btn){tipoPago=tipo;document.querySelectorAll('.pago-btn').forEach(b=>b.classList.remove('sel'));btn.classList.add('sel');}
 async function hacerPedido(){
-  const tel=document.getElementById('inp-tel').value.trim();
-  const notas=document.getElementById('inp-notas').value.trim();
-  if(!tel){mostrarNotif('Ingresa tu teléfono');return}
+const notas=document.getElementById('inp-notas').value.trim();
   const btn=document.getElementById('btn-pedir');btn.disabled=true;btn.textContent='Enviando pedido...';
   try{
-    let{data:cliente,error:errCli}=await sb.from('clientes').select('id').eq('telefono',tel).single();
-    if(errCli||!cliente){const{data:nc}=await sb.from('clientes').insert({nombre:'Cliente',telefono:tel,direccion:null}).select('id').single();cliente=nc;}
+    const{data:cliente}=await sb.from('clientes').insert({nombre:'Cliente',telefono:null,direccion:null}).select('id').single();
     const total=carrito.reduce((s,i)=>s+(i.precio*i.cantidad),0);
     const{data:pedido}=await sb.from('pedidos').insert({cliente_id:cliente.id,tipo:'recoger',pago:tipoPago,direccion_entrega:null,total,notas:notas||null}).select('id').single();
     await sb.from('pedido_items').insert(carrito.map(i=>({pedido_id:pedido.id,producto_id:i.id,cantidad:i.cantidad,precio_unitario:i.precio,subtotal:i.precio*i.cantidad})));
