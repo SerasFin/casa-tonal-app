@@ -278,7 +278,11 @@ const notas=document.getElementById('inp-notas').value.trim();
     const{data:cliente}=await sb.from('clientes').insert({nombre:'Cliente',telefono:null,direccion:null}).select('id').single();
     const total=carrito.reduce((s,i)=>s+(i.precio*i.cantidad),0);
     const ahoraMex=new Date().toLocaleString('es-MX',{timeZone:'America/Mexico_City'});
-    const{data:pedido}=await sb.from('pedidos').insert({cliente_id:cliente.id,tipo:'recoger',pago:tipoPago,direccion_entrega:null,total,notas:notas||null,creado_en_local:ahoraMex}).select('id').single();await sb.from('pedido_items').insert(carrito.map(i=>({pedido_id:pedido.id,producto_id:i.id,cantidad:i.cantidad,precio_unitario:i.precio,subtotal:i.precio*i.cantidad})));
+    const{data:pedido}=await sb.from('pedidos').insert({cliente_id:cliente.id,tipo:'recoger',pago:tipoPago,direccion_entrega:null,total,notas:notas||null,creado_en_local:ahoraMex}).select('id').single();
+    const itemsPayload=carrito.map(i=>({pedido_id:pedido.id,producto_id:i.id,cantidad:i.cantidad,precio_unitario:i.precio,subtotal:i.precio*i.cantidad}));
+    console.log('Insertando items:', JSON.stringify(itemsPayload));
+    const{error:errItems}=await sb.from('pedido_items').insert(itemsPayload);
+    if(errItems)console.error('Error items:', errItems);
     pedidoActivo=pedido.id;
     try{
       const hoyMex=new Date().toLocaleDateString('es-MX',{timeZone:'America/Mexico_City'});
