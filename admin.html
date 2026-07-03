@@ -297,8 +297,6 @@ async function cargarItems(){
       items.push({...item,pedido_id:p.id});
     }
   }
-  pedidos.forEach(p=>{p._items=(items||[]).filter(i=>i.pedido_id===p.id);});
-}
 
 function suscribirRealtime(){
   sb.channel('pedidos-realtime')
