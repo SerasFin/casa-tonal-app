@@ -284,10 +284,17 @@ async function cargarPedidos(){
 
 async function cargarItems(){
   if(!pedidos.length)return;
-  const ids=pedidos.map(p=>p.id);
-  const{data:items}=await sb.from('pedido_items')
-    .select('*, productos(nombre)')
-    .in('pedido_id',ids);
+  const{data:pedidosConItems}=await sb.from('pedidos')
+    .select('id, pedido_items!inner(cantidad, subtotal, productos!pedido_items_producto_id_fkey(nombre))')
+    .gte('creado_en',hoy.toISOString())
+    .neq('estado','cancelado');
+
+  const items=[];
+  for(const p of pedidosConItems||[]){
+    for(const item of p.pedido_items||[]){
+      items.push({...item,pedido_id:p.id});
+    }
+  }
   pedidos.forEach(p=>{p._items=(items||[]).filter(i=>i.pedido_id===p.id);});
 }
 
