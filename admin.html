@@ -291,19 +291,17 @@ async function cargarItems(){
   pedidos.forEach(p=>{p._items=(items||[]).filter(i=>i.pedido_id===p.id);});
 }
 
-  const items=[];
+  function suscribirRealtime(){
   for(const p of pedidosConItems||[]){
     for(const item of p.pedido_items||[]){
       items.push({...item,pedido_id:p.id});
     }
   }
-
-function suscribirRealtime(){
   sb.channel('pedidos-realtime')
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'pedidos'},async(payload)=>{
       const nuevo=payload.new;
       const{data:cliente}=await sb.from('clientes').select('nombre,telefono').eq('id',nuevo.cliente_id).single();
-      const{data:items}=await sb.from('pedido_items').select('*, productos(nombre)').eq('pedido_id',nuevo.id);
+      const{data:items}=await sb.from('pedido_items').select('*, productos!pedido_items_producto_id_fkey(nombre)').eq('pedido_id',nuevo.id);
       nuevo.clientes=cliente;nuevo._items=items||[];nuevo._esNuevo=true;
       pedidos.unshift(nuevo);
       renderTodo();
