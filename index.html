@@ -214,7 +214,12 @@ async function cargarMenu(){
     for(const cat of cats){
       const items=prods.filter(p=>p.categoria_id===cat.id);
       if(!items.length)continue;
-      html+=`<div class="seccion"><h3 class="seccion-titulo">${cat.nombre}</h3><div class="productos-lista">`;
+      html+=`<div class="seccion">
+        <div class="acordeon-header" onclick="toggleAcordeon('cat-${cat.id}')" style="display:flex;justify-content:space-between;align-items:center;padding:.85rem 1rem;background:var(--cafe);border-radius:var(--radio);cursor:pointer;margin-bottom:.5rem">
+          <h3 style="font-family:'Playfair Display',serif;font-size:18px;color:var(--crema)">${cat.nombre}</h3>
+          <span id="icon-cat-${cat.id}" style="color:var(--crema);font-size:18px;transition:transform .3s">▾</span>
+        </div>
+        <div id="cat-${cat.id}" style="display:none"><div class="productos-lista">`;
       for(const p of items){
         const vp=vars?vars.filter(v=>v.producto_id===p.id):[];
         const emoji=getEmoji(p.nombre);
@@ -228,7 +233,7 @@ async function cargarMenu(){
         else if(p.precio)html+=`<button class="agregar-directo" onclick="agregarDirecto('${p.id}','${p.nombre.replace(/'/g,"\\'")}',${p.precio},'${emoji}','')">+ Agregar</button>`;
         html+='</div>';
       }
-      html+='</div></div>';
+      html+='</div></div></div>';
     }
     mc.innerHTML=html;
   }catch(e){mc.innerHTML='<div class="empty-state"><span class="big">☕</span><p>Sin conexión al menú.<br>Verifica tu internet e intenta de nuevo.</p></div>';}
@@ -330,6 +335,22 @@ function cambiarVista(vista,btn){
   if(vista==='pedido'&&pedidoActivo)mostrarEstadoPedido(pedidoActivo);
 }
 document.getElementById('panel-carrito').addEventListener('click',function(e){if(e.target===this)cerrarCarrito();});
+  function toggleAcordeon(id){
+  const cols=document.querySelectorAll('[id^="cat-"]');
+  const icons=document.querySelectorAll('[id^="icon-cat-"]');
+  cols.forEach(c=>{
+    if(c.id===id){
+      const abierto=c.style.display==='block';
+      c.style.display=abierto?'none':'block';
+      const icon=document.getElementById('icon-'+c.id);
+      if(icon)icon.style.transform=abierto?'rotate(0deg)':'rotate(180deg)';
+    }else{
+      c.style.display='none';
+      const icon=document.getElementById('icon-'+c.id);
+      if(icon)icon.style.transform='rotate(0deg)';
+    }
+  });
+}
 init();
 </script>
 </body>
