@@ -284,10 +284,10 @@ async function cargarPedidos(){
 
 async function cargarItems(){
   if(!pedidos.length)return;
+  const idsPedidos=pedidosHoy.map(p=>p.id);
   const{data:pedidosConItems}=await sb.from('pedidos')
     .select('id, pedido_items!inner(cantidad, subtotal, productos!pedido_items_producto_id_fkey(nombre))')
-    .gte('creado_en',hoy.toISOString())
-    .neq('estado','cancelado');
+    .in('id',idsPedidos);
 
   const items=[];
   for(const p of pedidosConItems||[]){
