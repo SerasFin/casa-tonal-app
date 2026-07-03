@@ -484,15 +484,23 @@ function descargarCSV(contenido,nombreArchivo){
   URL.revokeObjectURL(url);
 }
 
-async function generarReportes(){
-  const hoy=new Date();hoy.setHours(0,0,0,0);
-  const fecha=hoy.toLocaleDateString('es-MX',{timeZone:'America/Mexico_City'}).replace(/\//g,'-');
+async function generarReportes(fechaInicio=null,fechaFin=null){
+  const hoyMex=new Date().toLocaleDateString('es-MX',{timeZone:'America/Mexico_City'});
+  const fecha=hoyMex.replace(/\//g,'-');
+  const desdeFecha=fechaInicio||hoyMex;
+  const hastaFecha=fechaFin||hoyMex;
 
-  const{data:pedidosHoy}=await sb.from('pedidos')
+  // Traer todos y filtrar por creado_en_local
+  const{data:todosPedidos}=await sb.from('pedidos')
     .select('*, clientes(telefono)')
-    .gte('creado_en',hoy.toISOString())
+    .not('creado_en_local','is',null)
     .neq('estado','cancelado')
-    .order('creado_en',{ascending:true});
+    .order('creado_en_local',{ascending:true});
+
+  const pedidosHoy=(todosPedidos||[]).filter(p=>{
+    const fechaPedido=p.creado_en_local.split(',')[0].trim();
+    return fechaPedido>=desdeFecha&&fechaPedido<=hastaFecha;
+  });
 
   if(!pedidosHoy?.length){console.log('Sin pedidos hoy para reportar');return;}
 
