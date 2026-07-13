@@ -138,21 +138,59 @@ textarea.field-input{resize:none}
 @keyframes fadeOut{0%{opacity:0;transform:translateX(-50%) translateY(-8px)}15%{opacity:1;transform:translateX(-50%) translateY(0)}80%{opacity:1}100%{opacity:0}}
 .footer-note{text-align:center;font-size:11px;color:var(--seco);margin-top:16px;opacity:.8;padding-bottom:20px}
 .loading{text-align:center;padding:30px;color:var(--seco);font-size:14px}
+
+/* MODAL LOGIN ADMIN */
+.modal-overlay{position:fixed;inset:0;background:rgba(46,42,30,0.6);z-index:500;display:flex;align-items:center;justify-content:center;padding:20px}
+.modal-box{background:var(--blanco);border-radius:16px;padding:28px 24px;width:100%;max-width:340px;box-shadow:0 8px 32px rgba(46,42,30,0.2)}
+.modal-box h2{font-family:'Playfair Display',serif;font-size:20px;color:var(--oliva);margin-bottom:4px}
+.modal-box p{font-size:13px;color:var(--cafe-m);margin-bottom:20px}
+.modal-field{margin-bottom:12px}
+.modal-field label{display:block;font-size:12px;color:var(--seco);font-weight:500;margin-bottom:5px;text-transform:uppercase;letter-spacing:.05em}
+.modal-field input{width:100%;padding:9px 12px;border-radius:8px;border:1.5px solid var(--crema-d);background:var(--crema);color:var(--cafe);font-size:14px;font-family:'DM Sans',sans-serif}
+.modal-field input:focus{outline:none;border-color:var(--oliva)}
+.modal-btn{width:100%;padding:11px;background:var(--oliva);color:#FDFBF6;border:none;border-radius:10px;font-size:15px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;margin-top:8px}
+.modal-btn:active{opacity:.85}
+.modal-error{font-size:13px;color:var(--out);text-align:center;margin-top:8px;display:none}
+.modal-cancel{width:100%;padding:9px;background:transparent;color:var(--cafe-m);border:1.5px solid var(--crema-d);border-radius:10px;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;margin-top:8px}
+.admin-badge{font-size:11px;background:rgba(253,251,246,0.2);color:rgba(253,251,246,0.8);padding:3px 8px;border-radius:20px;margin-left:6px}
+.logout-btn{font-size:11px;background:rgba(253,251,246,0.15);color:rgba(253,251,246,0.7);border:1px solid rgba(253,251,246,0.2);border-radius:20px;padding:3px 10px;cursor:pointer;font-family:'DM Sans',sans-serif}
 </style>
 </head>
 <body>
+
+<!-- MODAL LOGIN ADMIN -->
+<div class="modal-overlay" id="modal-admin" style="display:none">
+  <div class="modal-box">
+    <h2>Acceso Admin</h2>
+    <p>Solo para administradores de Casa Tonal</p>
+    <div class="modal-field">
+      <label>Usuario</label>
+      <input type="text" id="inp-user" placeholder="Usuario" autocomplete="username"/>
+    </div>
+    <div class="modal-field">
+      <label>Contraseña</label>
+      <input type="password" id="inp-pass" placeholder="Contraseña" autocomplete="current-password" onkeydown="if(event.key==='Enter')intentarLogin()"/>
+    </div>
+    <button class="modal-btn" onclick="intentarLogin()">Entrar</button>
+    <div class="modal-error" id="login-error">Usuario o contraseña incorrectos</div>
+    <button class="modal-cancel" onclick="cerrarModalAdmin()">Cancelar</button>
+  </div>
+</div>
 
 <div class="notif" id="notif"></div>
 
 <header class="header">
   <div class="header-top">
     <span class="logo">Casa Tonal</span>
-    <span class="fecha-lbl" id="fecha-hdr"></span>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span class="fecha-lbl" id="fecha-hdr"></span>
+      <button class="logout-btn" id="btn-logout" style="display:none" onclick="cerrarSesionAdmin()">Salir</button>
+    </div>
   </div>
   <div class="nav-tabs">
-    <button class="nav-tab active" onclick="setVista('limpieza',this)">☑ Limpieza</button>
-    <button class="nav-tab" onclick="setVista('inventario',this)">📦 Inventario</button>
-    <button class="nav-tab" onclick="setVista('admin',this)">📊 Admin</button>
+    <button class="nav-tab active" id="ntab-limpieza" onclick="setVista('limpieza',this)">☑ Limpieza</button>
+    <button class="nav-tab" id="ntab-inventario" onclick="setVista('inventario',this)">📦 Inventario</button>
+    <button class="nav-tab" id="ntab-admin" onclick="pedirAccesoAdmin(this)">📊 Admin</button>
   </div>
 </header>
 
@@ -637,9 +675,68 @@ async function cargarAdmin(){
   }catch(e){body.innerHTML='<div class="empty-admin">Error al cargar datos</div>';}
 }
 
+// ─── AUTH ADMIN ──────────────────────────────────────────────
+const ADMIN_USER = 'AngTonal';
+const ADMIN_PASS = 'LunaTonal@98';
+const SESSION_KEY = 'ct_admin_auth';
+
+function esAdmin(){
+  try{ return sessionStorage.getItem(SESSION_KEY)==='true'; }catch(e){ return false; }
+}
+
+function pedirAccesoAdmin(btn){
+  if(esAdmin()){
+    setVista('admin', btn);
+    return;
+  }
+  document.getElementById('modal-admin').style.display='flex';
+  document.getElementById('inp-user').value='';
+  document.getElementById('inp-pass').value='';
+  document.getElementById('login-error').style.display='none';
+  setTimeout(()=>document.getElementById('inp-user').focus(),100);
+}
+
+function intentarLogin(){
+  const u=document.getElementById('inp-user').value.trim();
+  const p=document.getElementById('inp-pass').value;
+  if(u===ADMIN_USER && p===ADMIN_PASS){
+    try{ sessionStorage.setItem(SESSION_KEY,'true'); }catch(e){}
+    cerrarModalAdmin();
+    document.getElementById('btn-logout').style.display='block';
+    const btn=document.getElementById('ntab-admin');
+    setVista('admin', btn);
+  } else {
+    document.getElementById('login-error').style.display='block';
+    document.getElementById('inp-pass').value='';
+    document.getElementById('inp-pass').focus();
+  }
+}
+
+function cerrarModalAdmin(){
+  document.getElementById('modal-admin').style.display='none';
+}
+
+function cerrarSesionAdmin(){
+  try{ sessionStorage.removeItem(SESSION_KEY); }catch(e){}
+  document.getElementById('btn-logout').style.display='none';
+  // regresar a limpieza
+  const btn=document.getElementById('ntab-limpieza');
+  btn.click();
+  notif('Sesión admin cerrada');
+}
+
+// Cerrar modal al clicar fuera
+window.addEventListener('DOMContentLoaded',()=>{
+  document.getElementById('modal-admin').addEventListener('click',function(e){
+    if(e.target===this) cerrarModalAdmin();
+  });
+});
+
 // ─── INIT ────────────────────────────────────────────────────
 async function init(){
   document.getElementById('fecha-hdr').textContent=new Date().toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'});
+  // restaurar sesión admin si ya había iniciado
+  if(esAdmin()) document.getElementById('btn-logout').style.display='block';
   selectedDay=(new Date().getDay()+6)%7;
   renderWeekLbl();
   renderDays();
