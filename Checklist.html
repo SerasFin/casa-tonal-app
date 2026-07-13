@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Checklist · Casa Tonal</title>
+<meta name="theme-color" content="#5C6B3A">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --oliva:#5C6B3A;--oliva-l:#7A8C4E;--seco:#A89F72;--seco-l:#C8BC8A;
+  --crema:#F5F0E4;--crema-d:#EDE5D0;--cafe:#2E2A1E;--cafe-m:#4A4535;
+  --blanco:#FDFBF6;
+  --ok-bg:#E8F4E4;--ok:#4A7C3F;--ok-bd:#8FC48A;
+  --low-bg:#FEF3CD;--low:#8B6914;--low-bd:#E6C84A;
+  --out-bg:#FDEAEA;--out:#9B2B2B;--out-bd:#E88A8A;
+}
+body{font-family:'DM Sans',sans-serif;background:var(--crema);color:var(--cafe);min-height:100vh;max-width:430px;margin:0 auto}
+
+/* HEADER */
+.header{background:var(--oliva);padding:16px 18px;position:sticky;top:0;z-index:100}
+.header-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.logo{font-family:'Playfair Display',serif;font-size:18px;color:#FDFBF6}
+.fecha-lbl{font-size:12px;color:rgba(253,251,246,0.7)}
+.nav-tabs{display:flex;gap:8px}
+.nav-tab{flex:1;padding:7px;border-radius:10px;border:1.5px solid rgba(253,251,246,0.2);background:transparent;color:rgba(253,251,246,0.6);font-size:13px;font-weight:500;cursor:pointer;text-align:center;font-family:'DM Sans',sans-serif;transition:all .15s}
+.nav-tab.active{background:#FDFBF6;color:var(--oliva);border-color:#FDFBF6}
+
+/* CONTENIDO */
+.contenido{padding:14px}
+
+/* SELECTOR DE DÍA */
+.week-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.week-btn{border:1.5px solid var(--crema-d);background:var(--blanco);color:var(--cafe-m);border-radius:8px;padding:5px 12px;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif}
+.week-lbl{font-size:13px;font-weight:500;color:var(--cafe-m)}
+.day-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:12px}
+.day-btn{padding:7px 2px;border-radius:8px;border:1.5px solid var(--crema-d);background:var(--blanco);color:var(--cafe-m);font-size:11px;cursor:pointer;text-align:center;line-height:1.3;font-family:'DM Sans',sans-serif}
+.day-btn span{display:block}
+.day-btn .pct{font-size:10px;color:var(--seco);margin-top:1px}
+.day-btn.active{border-color:var(--oliva);background:var(--oliva);color:#FDFBF6}
+.day-btn.active .pct{color:rgba(253,251,246,0.75)}
+.day-btn.complete{border-color:var(--ok-bd);background:var(--ok-bg);color:var(--ok)}
+.day-btn.complete .pct{color:var(--oliva-l)}
+
+/* TURNO */
+.turno-tabs{display:flex;gap:8px;margin-bottom:14px}
+.turno-tab{flex:1;padding:9px;border-radius:10px;border:1.5px solid var(--crema-d);background:var(--blanco);color:var(--cafe-m);font-size:14px;font-weight:500;cursor:pointer;text-align:center;transition:all .15s;font-family:'DM Sans',sans-serif}
+.turno-tab.mat{background:var(--oliva);border-color:var(--oliva);color:#FDFBF6}
+.turno-tab.ves{background:var(--seco);border-color:var(--seco);color:var(--cafe)}
+
+/* CHECKLIST */
+.section-lbl{font-size:11px;font-weight:500;color:var(--oliva-l);text-transform:uppercase;letter-spacing:.08em;margin:14px 0 7px;display:flex;align-items:center;gap:6px}
+.section-lbl::after{content:'';flex:1;height:1px;background:var(--seco-l);opacity:.5}
+.item-row{display:flex;align-items:center;gap:12px;padding:11px 14px;background:var(--blanco);border:1.5px solid var(--crema-d);border-radius:10px;margin-bottom:6px;cursor:pointer;transition:all .12s;-webkit-tap-highlight-color:transparent}
+.item-row:active{transform:scale(.98)}
+.item-row.checked{background:var(--ok-bg);border-color:var(--ok-bd)}
+.check-box{width:24px;height:24px;border-radius:7px;border:2px solid var(--crema-d);background:var(--crema);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s;font-size:14px;color:transparent}
+.item-row.checked .check-box{background:var(--oliva);border-color:var(--oliva);color:#FDFBF6}
+.item-lbl{font-size:15px;color:var(--cafe);flex:1}
+.item-row.checked .item-lbl{color:var(--ok)}
+
+/* RESPONSABLE */
+.resp-card{background:var(--blanco);border:1.5px solid var(--crema-d);border-radius:12px;padding:12px 14px;margin-top:14px}
+.resp-card label{font-size:11px;color:var(--seco);font-weight:500;display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em}
+.resp-card select{width:100%;padding:8px 10px;border-radius:8px;border:1.5px solid var(--crema-d);background:var(--crema);color:var(--cafe);font-size:14px;font-family:'DM Sans',sans-serif}
+
+/* PROGRESO */
+.prog-wrap{margin-top:10px}
+.prog-bar{height:5px;background:var(--crema-d);border-radius:3px;overflow:hidden}
+.prog-fill{height:100%;background:linear-gradient(90deg,var(--oliva),var(--seco-l));border-radius:3px;transition:width .3s}
+.prog-txt{font-size:12px;color:var(--cafe-m);margin-top:5px}
+
+/* INVENTARIO */
+.resumen{display:flex;gap:6px;margin-bottom:12px}
+.res-card{flex:1;border-radius:10px;padding:7px 6px;text-align:center;border:1.5px solid transparent}
+.res-num{font-size:18px;font-weight:500}
+.res-lbl{font-size:10px;margin-top:1px}
+.res-ok{background:var(--ok-bg);border-color:var(--ok-bd);color:var(--ok)}
+.res-low{background:var(--low-bg);border-color:var(--low-bd);color:var(--low)}
+.res-out{background:var(--out-bg);border-color:var(--out-bd);color:var(--out)}
+.res-na{background:var(--crema-d);border-color:var(--seco-l);color:var(--cafe-m)}
+.cat-tabs{display:flex;gap:8px;margin-bottom:12px}
+.cat-tab{flex:1;padding:9px;border-radius:10px;border:1.5px solid var(--crema-d);background:var(--blanco);color:var(--cafe-m);font-size:14px;font-weight:500;cursor:pointer;text-align:center;transition:all .15s;font-family:'DM Sans',sans-serif}
+.cat-tab.active{background:var(--oliva);border-color:var(--oliva);color:#FDFBF6}
+.legend{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:12px}
+.pill{font-size:11px;padding:3px 9px;border-radius:20px;font-weight:500;border:1.5px solid transparent}
+.pill-ok{background:var(--ok-bg);color:var(--ok);border-color:var(--ok-bd)}
+.pill-low{background:var(--low-bg);color:var(--low);border-color:var(--low-bd)}
+.pill-out{background:var(--out-bg);color:var(--out);border-color:var(--out-bd)}
+.pill-na{background:var(--crema-d);color:var(--cafe-m);border-color:var(--seco-l)}
+.inv-card{background:var(--blanco);border:1.5px solid var(--crema-d);border-radius:10px;margin-bottom:6px;overflow:hidden;transition:border-color .15s}
+.inv-card.st-ok{border-color:var(--ok-bd)}
+.inv-card.st-low{border-color:var(--low-bd)}
+.inv-card.st-out{border-color:var(--out-bd)}
+.inv-top{display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer}
+.inv-name{flex:1;font-size:14px;font-weight:500;color:var(--cafe)}
+.st-badge{font-size:11px;font-weight:500;padding:3px 9px;border-radius:20px;white-space:nowrap;flex-shrink:0}
+.badge-none{background:var(--crema-d);color:var(--cafe-m)}
+.badge-ok{background:var(--ok-bg);color:var(--ok)}
+.badge-low{background:var(--low-bg);color:var(--low)}
+.badge-out{background:var(--out-bg);color:var(--out)}
+.inv-detail{padding:0 14px 10px;display:none}
+.inv-card.open .inv-detail{display:block}
+.st-row{display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap}
+.st-btn{font-size:12px;padding:4px 10px;border-radius:20px;border:1.5px solid transparent;cursor:pointer;font-weight:500;font-family:'DM Sans',sans-serif;transition:all .12s}
+.st-btn:active{transform:scale(.97)}
+.sel-ok{background:var(--ok-bg);color:var(--ok);border-color:var(--ok-bd)}
+.sel-low{background:var(--low-bg);color:var(--low);border-color:var(--low-bd)}
+.sel-out{background:var(--out-bg);color:var(--out);border-color:var(--out-bd)}
+.unsel{background:var(--crema-d);color:var(--cafe-m);border-color:var(--crema-d)}
+.field-row{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+.field-row label{font-size:12px;color:var(--seco);font-weight:500;min-width:70px}
+.field-input{flex:1;padding:6px 10px;border-radius:8px;border:1.5px solid var(--crema-d);background:var(--crema);color:var(--cafe);font-size:13px;font-family:'DM Sans',sans-serif}
+.field-input:focus{outline:none;border-color:var(--oliva)}
+textarea.field-input{resize:none}
+.add-btn{width:100%;margin-top:10px;padding:10px;border:1.5px dashed var(--seco-l);background:transparent;color:var(--seco);border-radius:10px;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif}
+
+/* ADMIN */
+.admin-filtros{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.filtro-sel{flex:1;min-width:120px;padding:8px 10px;border-radius:8px;border:1.5px solid var(--crema-d);background:var(--blanco);color:var(--cafe);font-size:13px;font-family:'DM Sans',sans-serif}
+.admin-card{background:var(--blanco);border:1.5px solid var(--crema-d);border-radius:10px;padding:12px 14px;margin-bottom:8px}
+.admin-card-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.admin-fecha{font-size:13px;font-weight:500;color:var(--cafe)}
+.admin-resp{font-size:12px;color:var(--seco)}
+.admin-turno{font-size:11px;padding:2px 8px;border-radius:20px;background:var(--crema-d);color:var(--cafe-m);font-weight:500}
+.admin-pct{font-size:20px;font-weight:500;color:var(--oliva)}
+.admin-sub{font-size:11px;color:var(--cafe-m)}
+.admin-items{margin-top:8px;display:flex;flex-wrap:wrap;gap:4px}
+.admin-item{font-size:11px;padding:2px 8px;border-radius:20px;border:1px solid var(--crema-d);color:var(--cafe-m)}
+.admin-item.done{background:var(--ok-bg);border-color:var(--ok-bd);color:var(--ok)}
+.empty-admin{text-align:center;padding:40px 20px;color:var(--seco);font-size:14px}
+
+/* MISC */
+.notif{position:fixed;top:14px;left:50%;transform:translateX(-50%);background:var(--cafe);color:#FDFBF6;padding:7px 18px;border-radius:50px;font-size:13px;z-index:300;display:none;white-space:nowrap;font-family:'DM Sans',sans-serif}
+.notif.show{display:block;animation:fadeOut 2.5s ease forwards}
+@keyframes fadeOut{0%{opacity:0;transform:translateX(-50%) translateY(-8px)}15%{opacity:1;transform:translateX(-50%) translateY(0)}80%{opacity:1}100%{opacity:0}}
+.footer-note{text-align:center;font-size:11px;color:var(--seco);margin-top:16px;opacity:.8;padding-bottom:20px}
+.loading{text-align:center;padding:30px;color:var(--seco);font-size:14px}
+</style>
+</head>
+<body>
+
+<div class="notif" id="notif"></div>
+
+<header class="header">
+  <div class="header-top">
+    <span class="logo">Casa Tonal</span>
+    <span class="fecha-lbl" id="fecha-hdr"></span>
+  </div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="setVista('limpieza',this)">☑ Limpieza</button>
+    <button class="nav-tab" onclick="setVista('inventario',this)">📦 Inventario</button>
+    <button class="nav-tab" onclick="setVista('admin',this)">📊 Admin</button>
+  </div>
+</header>
+
+<div class="contenido">
+
+  <!-- ===== VISTA LIMPIEZA ===== -->
+  <div id="vista-limpieza">
+    <div class="week-nav">
+      <button class="week-btn" id="prev-week">‹ Anterior</button>
+      <span class="week-lbl" id="week-lbl"></span>
+      <button class="week-btn" id="next-week">Siguiente ›</button>
+    </div>
+    <div class="day-grid" id="day-grid"></div>
+    <div class="turno-tabs">
+      <button class="turno-tab mat" id="tab-mat" onclick="setTurno('M')">☀️ Matutino</button>
+      <button class="turno-tab" id="tab-ves" onclick="setTurno('V')">🌙 Vespertino</button>
+    </div>
+    <div id="checklist-body"></div>
+    <div class="resp-card">
+      <label>Responsable del turno</label>
+      <select id="resp-sel" onchange="guardarResponsable()">
+        <option value="">— Selecciona tu nombre —</option>
+        <option>Ángeles</option><option>Abril</option><option>Elena</option>
+        <option>Janeth</option><option>Rocío</option><option>Marcos</option><option>Serafín</option>
+      </select>
+    </div>
+    <div class="prog-wrap">
+      <div class="prog-bar"><div class="prog-fill" id="prog-fill" style="width:0%"></div></div>
+      <div class="prog-txt" id="prog-txt"></div>
+    </div>
+    <div class="footer-note">Casa Tonal · Amozoc, Puebla</div>
+  </div>
+
+  <!-- ===== VISTA INVENTARIO ===== -->
+  <div id="vista-inventario" style="display:none">
+    <div class="resumen" id="inv-resumen"></div>
+    <div class="cat-tabs">
+      <button class="cat-tab active" id="tab-beb" onclick="setCategoria('bebidas')">☕ Bebidas</button>
+      <button class="cat-tab" id="tab-ali" onclick="setCategoria('alimentos')">🥐 Alimentos</button>
+    </div>
+    <div class="legend">
+      <span class="pill pill-ok">✓ Suficiente</span>
+      <span class="pill pill-low">⚠ Poco</span>
+      <span class="pill pill-out">✕ Agotado</span>
+      <span class="pill pill-na">— Sin revisar</span>
+    </div>
+    <div id="inv-body"></div>
+    <div class="resp-card">
+      <label>Revisado por</label>
+      <select id="inv-resp" onchange="guardarRespInv()">
+        <option value="">— Selecciona tu nombre —</option>
+        <option>Ángeles</option><option>Abril</option><option>Elena</option>
+        <option>Janeth</option><option>Rocío</option><option>Marcos</option><option>Serafín</option>
+      </select>
+    </div>
+    <button class="add-btn" onclick="addProducto()">+ Añadir producto</button>
+    <div class="footer-note">Casa Tonal · Amozoc, Puebla</div>
+  </div>
+
+  <!-- ===== VISTA ADMIN ===== -->
+  <div id="vista-admin" style="display:none">
+    <div class="admin-filtros">
+      <select class="filtro-sel" id="f-tipo" onchange="cargarAdmin()">
+        <option value="limpieza">Checklist limpieza</option>
+        <option value="inventario">Inventario</option>
+      </select>
+      <select class="filtro-sel" id="f-resp" onchange="cargarAdmin()">
+        <option value="">Todos</option>
+        <option>Ángeles</option><option>Abril</option><option>Elena</option>
+        <option>Janeth</option><option>Rocío</option><option>Marcos</option><option>Serafín</option>
+      </select>
+    </div>
+    <div id="admin-body"><div class="loading">Cargando historial...</div></div>
+    <div class="footer-note">Casa Tonal · Amozoc, Puebla</div>
+  </div>
+
+</div>
+
+<script>
+const SUPA_URL='https://icoikvoemymknqzsegxr.supabase.co';
+const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imljb2lrdm9lbXlta25xenNlZ3hyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3MjMwNTYsImV4cCI6MjA5MDI5OTA1Nn0.Hr4dmj1D_a7zZVNQDomqFSbyUzaB0lfYV8yhHiu8sps';
+const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
+
+// ─── CATÁLOGO ────────────────────────────────────────────────
+const CATALOGO = {
+  bebidas: {
+    "Cafés y base":["Café Oscuro","Café Medio","Café Honey","Chocolate Líquido","Chocolate en Polvo"],
+    "Leches":["Leche Entera","Leche Deslactosada","Leche Evaporada","Crema Batida"],
+    "Saborizantes":["Vainilla","Caramelo","Canela","Calahua"],
+    "Tés":["Té de Manzanilla con Hinojo y Aloe Vera","Té Negro de Frutos Rojos","Té Manzanilla y Lavanda","Té Verde Limón","Té Jengibre y Lima","Té Blanco y Menta"],
+    "Siropes":["Sirope Frutos Rojos","Sirope Mora Azul","Sirope Cereza","Sirope Manzana Verde","Sirope Fresa – Kiwi","Sirope Mango","Sirope Maracuya Tropical","Concentrado de Jamaica"],
+    "Toppings":["Nuez","Arándanos","Galleta Oreo","Chispas de Chocolate","Chispas de Vainilla","Chispas de Colores","Mazapán","Perlas explosivas de Frutos Rojos","Perlas explosivas de Manzana verde","Perlas explosivas de Mora Azul"],
+    "Helados y hielo":["Helado de Vainilla","Hielo","Garrafón de Agua"],
+    "Desechables":["Vasos café caliente 16 oz","Tapas café caliente 16 oz","Vasos café caliente 12 oz","Tapas café caliente 12 oz","Vasos café caliente 8 oz","Vasos frappé 16 oz","Tapas frappé 16 oz","Vasos frappé 12 oz","Tapas frappé 12 oz","Vasos frappé 8 oz","Tapas frappé 8 oz","Cartón para vaso","Popotes"]
+  },
+  alimentos: {
+    "Panes y masas":["Cuernitos","Bolillos","Tortas","Pan para Sándwich","Harina","Huevo","Vainilla"],
+    "Proteínas":["Jamón","Milanesa","Salchicha","Tocino"],
+    "Quesos":["Queso Mozzarella","Queso Crema","Queso Amarillo","Quesillo"],
+    "Verduras y frescos":["Lechuga","Jitomate","Cebolla","Cilantro","Aguacate","Serranito","Rajas","Chipotles","Papas Gajo"],
+    "Salsas y aderezos":["Valentina","Catsup","Salsa Macha","Mermelada de Fresa","Mermelada de Zarzamora","Cajeta"],
+    "Postres":["Pay de Limón","Flan Napolitano","Cheesecake Zarzamora"],
+    "Desechables":["Papel Cuadrado","Bolsas de 2 orejas","Servilletas"],
+    "Limpieza":["Papel para Baño","Limpiador con aroma","Jabón para Trastes","Esponja para Trastes","Guantes para Limpieza"]
+  }
+};
+
+const INMUEBLES = ["Trastes limpios","Baño limpio","Mesas limpias","Barra limpia","Librero limpio","Máquina de peluches","Plantas","Refrigerador"];
+const TRABAJO   = ["Parrilla","Wafflera","Horno","Crepera"];
+const ALL_ITEMS = [...INMUEBLES,...TRABAJO];
+const DIAS = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+
+// ─── ESTADO ──────────────────────────────────────────────────
+let vista='limpieza', turno='M', weekOffset=0, selectedDay=0;
+let catInv='bebidas', respInv='';
+let checkCache={}, invCache={}, customProductos={};
+
+// ─── UTILS ───────────────────────────────────────────────────
+function hoy(){ return new Date(); }
+function weekStart(offset){
+  const d=new Date(); d.setDate(d.getDate()-((d.getDay()+6)%7)+offset*7); d.setHours(0,0,0,0); return d;
+}
+function dayDate(offset,idx){
+  const ws=weekStart(offset); ws.setDate(ws.getDate()+idx); return ws;
+}
+function fmtDate(d){ return d.toISOString().slice(0,10); }
+function fmtLabel(d){ return d.toLocaleDateString('es-MX',{weekday:'short',day:'numeric',month:'short'}); }
+function notif(msg){ const n=document.getElementById('notif'); n.textContent=msg; n.classList.remove('show'); void n.offsetWidth; n.classList.add('show'); setTimeout(()=>n.classList.remove('show'),2500); }
+function esc(s){ return (s||'').replace(/'/g,"&#39;").replace(/"/g,'&quot;'); }
+function escQ(s){ return (s||'').replace(/'/g,"\\'"); }
+
+// ─── NAVEGACIÓN ──────────────────────────────────────────────
+function setVista(v, btn){
+  vista=v;
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('vista-limpieza').style.display  = v==='limpieza'  ? 'block':'none';
+  document.getElementById('vista-inventario').style.display= v==='inventario'? 'block':'none';
+  document.getElementById('vista-admin').style.display     = v==='admin'     ? 'block':'none';
+  if(v==='admin') cargarAdmin();
+  if(v==='inventario') renderInv();
+}
+
+// ─── CHECKLIST ───────────────────────────────────────────────
+function setTurno(t){
+  turno=t;
+  document.getElementById('tab-mat').className='turno-tab'+(t==='M'?' mat':'');
+  document.getElementById('tab-ves').className='turno-tab'+(t==='V'?' ves':'');
+  renderChecklist();
+  renderResp();
+}
+
+function cacheKey(fecha,t,item){ return `${fecha}__${t}__${item}`; }
+function respKey(fecha,t){ return `resp__${fecha}__${t}`; }
+
+async function toggleItem(item){
+  const fecha=fmtDate(dayDate(weekOffset,selectedDay));
+  const k=cacheKey(fecha,turno,item);
+  const actual=checkCache[k]||false;
+  checkCache[k]=!actual;
+  renderChecklist();
+  renderDays();
+  // Guardar en Supabase
+  try{
+    const resp=checkCache[respKey(fecha,turno)]||null;
+    if(!actual){
+      // marcar como completado
+      await sb.from('checklist_limpieza').upsert({
+        fecha, turno, responsable:resp||'Sin asignar',
+        actividad:item, completado:true,
+        seccion: INMUEBLES.includes(item)?'inmuebles':'trabajo'
+      },{onConflict:'fecha,turno,actividad'});
+    } else {
+      await sb.from('checklist_limpieza')
+        .update({completado:false})
+        .eq('fecha',fecha).eq('turno',turno).eq('actividad',item);
+    }
+  }catch(e){ notif('Error al guardar'); }
+}
+
+async function guardarResponsable(){
+  const fecha=fmtDate(dayDate(weekOffset,selectedDay));
+  const v=document.getElementById('resp-sel').value;
+  checkCache[respKey(fecha,turno)]=v;
+  // actualizar todos los registros del día/turno con el responsable
+  try{
+    await sb.from('checklist_limpieza')
+      .update({responsable:v})
+      .eq('fecha',fecha).eq('turno',turno);
+  }catch(e){}
+}
+
+async function cargarDiaDesdeDB(fecha){
+  try{
+    const{data}=await sb.from('checklist_limpieza')
+      .select('*').eq('fecha',fecha);
+    if(data){
+      data.forEach(r=>{
+        checkCache[cacheKey(r.fecha,r.turno,r.actividad)]=r.completado;
+        if(r.responsable&&r.responsable!=='Sin asignar')
+          checkCache[respKey(r.fecha,r.turno)]=r.responsable;
+      });
+    }
+  }catch(e){}
+}
+
+function countDay(idx,t){
+  const fecha=fmtDate(dayDate(weekOffset,idx));
+  return ALL_ITEMS.filter(i=>checkCache[cacheKey(fecha,t,i)]).length;
+}
+
+function renderDays(){
+  const ws=weekStart(weekOffset);
+  const c=document.getElementById('day-grid'); c.innerHTML='';
+  for(let i=0;i<7;i++){
+    const d=new Date(ws); d.setDate(ws.getDate()+i);
+    const total=countDay(i,'M')+countDay(i,'V');
+    const max=ALL_ITEMS.length*2;
+    const pct=Math.round(total/max*100);
+    const isActive=i===selectedDay, isDone=total===max;
+    const btn=document.createElement('div');
+    btn.className='day-btn'+(isDone?' complete':isActive?' active':'');
+    btn.innerHTML=`<span>${DIAS[d.getDay()]}</span><span class="pct">${pct}%</span>`;
+    btn.onclick=async()=>{
+      selectedDay=i;
+      const fecha=fmtDate(dayDate(weekOffset,i));
+      await cargarDiaDesdeDB(fecha);
+      renderDays(); renderChecklist(); renderResp();
+    };
+    c.appendChild(btn);
+  }
+}
+
+function renderChecklist(){
+  const fecha=fmtDate(dayDate(weekOffset,selectedDay));
+  const body=document.getElementById('checklist-body'); body.innerHTML='';
+  const makeSection=(lbl)=>{
+    const s=document.createElement('div'); s.className='section-lbl'; s.textContent=lbl; body.appendChild(s);
+  };
+  const makeItem=(item)=>{
+    const k=cacheKey(fecha,turno,item);
+    const checked=!!checkCache[k];
+    const row=document.createElement('div');
+    row.className='item-row'+(checked?' checked':'');
+    row.innerHTML=`<div class="check-box">${checked?'✓':''}</div><span class="item-lbl">${item}</span>`;
+    row.onclick=()=>toggleItem(item);
+    body.appendChild(row);
+  };
+  makeSection('🏠 Limpieza inmuebles');
+  INMUEBLES.forEach(makeItem);
+  makeSection('⚙️ Área de trabajo');
+  TRABAJO.forEach(makeItem);
+  const done=ALL_ITEMS.filter(i=>checkCache[cacheKey(fecha,turno,i)]).length;
+  const pct=Math.round(done/ALL_ITEMS.length*100);
+  document.getElementById('prog-fill').style.width=pct+'%';
+  document.getElementById('prog-txt').textContent=`${done} de ${ALL_ITEMS.length} completadas · turno ${turno==='M'?'matutino':'vespertino'}`;
+}
+
+function renderResp(){
+  const fecha=fmtDate(dayDate(weekOffset,selectedDay));
+  document.getElementById('resp-sel').value=checkCache[respKey(fecha,turno)]||'';
+}
+
+function renderWeekLbl(){
+  const labels={0:'Esta semana','-1':'Semana pasada'};
+  document.getElementById('week-lbl').textContent=labels[weekOffset]||
+    (()=>{const ws=weekStart(weekOffset),we=new Date(ws);we.setDate(ws.getDate()+6);
+    return ws.toLocaleDateString('es-MX',{day:'numeric',month:'short'})+' – '+we.toLocaleDateString('es-MX',{day:'numeric',month:'short'});})();
+  document.getElementById('next-week').style.opacity=weekOffset>=0?'0.35':'1';
+  document.getElementById('next-week').style.pointerEvents=weekOffset>=0?'none':'auto';
+}
+
+document.getElementById('prev-week').onclick=async()=>{
+  weekOffset--; selectedDay=0; renderWeekLbl(); renderDays();
+  await cargarDiaDesdeDB(fmtDate(dayDate(weekOffset,0)));
+  renderChecklist(); renderResp();
+};
+document.getElementById('next-week').onclick=async()=>{
+  if(weekOffset<0){ weekOffset++; selectedDay=0; renderWeekLbl(); renderDays();
+    await cargarDiaDesdeDB(fmtDate(dayDate(weekOffset,0))); renderChecklist(); renderResp(); }
+};
+
+// ─── INVENTARIO ──────────────────────────────────────────────
+function invKey(tipo,producto){ return `${tipo}||${producto}`; }
+function getInv(tipo,prod){ return invCache[invKey(tipo,prod)]||{status:'',qty:'',nota:''}; }
+
+function setCategoria(c){
+  catInv=c;
+  document.getElementById('tab-beb').className='cat-tab'+(c==='bebidas'?' active':'');
+  document.getElementById('tab-ali').className='cat-tab'+(c==='alimentos'?' active':'');
+  renderInv();
+}
+
+async function setStatusInv(tipo,prod,st,cardId){
+  invCache[invKey(tipo,prod)]={...getInv(tipo,prod),status:st};
+  renderInv(); renderResumen();
+  setTimeout(()=>document.getElementById(cardId)?.classList.add('open'),10);
+  await guardarInv(tipo,prod);
+}
+
+async function guardarInv(tipo,prod){
+  const d=getInv(tipo,prod);
+  const resp=document.getElementById('inv-resp').value||'Sin asignar';
+  const fecha=fmtDate(hoy());
+  const cat=Object.entries(CATALOGO[tipo]).find(([,items])=>items.includes(prod))?.[0]||'Otros';
+  try{
+    await sb.from('inventario').upsert({
+      fecha,tipo,categoria:cat,producto:prod,
+      status:d.status||'sin_revisar',
+      cantidad:d.qty||null,nota:d.nota||null,responsable:resp
+    },{onConflict:'fecha,tipo,producto'});
+  }catch(e){}
+}
+
+async function guardarRespInv(){
+  respInv=document.getElementById('inv-resp').value;
+}
+
+async function cargarInvDesdeDB(){
+  try{
+    const fecha=fmtDate(hoy());
+    const{data}=await sb.from('inventario').select('*').eq('fecha',fecha);
+    if(data) data.forEach(r=>{
+      invCache[invKey(r.tipo,r.producto)]={status:r.status,qty:r.cantidad||'',nota:r.nota||''};
+    });
+  }catch(e){}
+}
+
+function renderInvBadge(st){
+  if(st==='ok') return `<span class="st-badge badge-ok">✓ Suficiente</span>`;
+  if(st==='low') return `<span class="st-badge badge-low">⚠ Poco</span>`;
+  if(st==='out') return `<span class="st-badge badge-out">✕ Agotado</span>`;
+  return `<span class="st-badge badge-none">— Revisar</span>`;
+}
+
+function renderInv(){
+  const secs=CATALOGO[catInv];
+  const cx=customProductos[catInv]||[];
+  let html=''; let idx=0;
+  for(const[sec,items]of Object.entries(secs)){
+    html+=`<div class="section-lbl">${sec}</div>`;
+    items.forEach(prod=>{
+      const d=getInv(catInv,prod);
+      const id=`inv-${idx++}`;
+      const cls=d.status?`st-${d.status}`:'';
+      const btns=['ok','low','out'].map(s=>{
+        const labels={ok:'Suficiente',low:'Poco',out:'Agotado'};
+        const c=d.status===s?`sel-${s}`:'unsel';
+        return `<button class="st-btn ${c}" onclick="setStatusInv('${catInv}','${escQ(prod)}','${s}','${id}')">${labels[s]}</button>`;
+      }).join('');
+      html+=`<div class="inv-card ${cls}" id="${id}">
+        <div class="inv-top" onclick="document.getElementById('${id}').classList.toggle('open')">
+          <span class="inv-name">${prod}</span>${renderInvBadge(d.status)}
+        </div>
+        <div class="inv-detail">
+          <div class="st-row">${btns}</div>
+          <div class="field-row"><label>Cantidad</label><input class="field-input" type="text" placeholder="ej. 2 paquetes" value="${esc(d.qty)}" onchange="invCache[invKey('${catInv}','${escQ(prod)}')].qty=this.value;guardarInv('${catInv}','${escQ(prod)}')"/></div>
+          <div class="field-row"><label>Nota</label><textarea class="field-input" rows="2" placeholder="ej. pedir el martes..." onchange="invCache[invKey('${catInv}','${escQ(prod)}')].nota=this.value;guardarInv('${catInv}','${escQ(prod)}')">${esc(d.nota)}</textarea></div>
+        </div>
+      </div>`;
+    });
+  }
+  if(cx.length){
+    html+=`<div class="section-lbl">Añadidos</div>`;
+    cx.forEach(prod=>{
+      const d=getInv(catInv,prod);
+      const id=`inv-cx-${idx++}`;
+      html+=`<div class="inv-card" id="${id}">
+        <div class="inv-top" onclick="document.getElementById('${id}').classList.toggle('open')">
+          <span class="inv-name">${prod}</span>${renderInvBadge(d.status)}
+        </div>
+        <div class="inv-detail">
+          <div class="st-row">${['ok','low','out'].map(s=>{const labels={ok:'Suficiente',low:'Poco',out:'Agotado'};const c=d.status===s?`sel-${s}`:'unsel';return`<button class="st-btn ${c}" onclick="setStatusInv('${catInv}','${escQ(prod)}','${s}','${id}')">${labels[s]}</button>`;}).join('')}</div>
+        </div>
+      </div>`;
+    });
+  }
+  document.getElementById('inv-body').innerHTML=html;
+  renderResumen();
+}
+
+function renderResumen(){
+  let ok=0,low=0,out=0,na=0;
+  for(const c of['bebidas','alimentos']){
+    const all=[...Object.values(CATALOGO[c]).flat(),...(customProductos[c]||[])];
+    all.forEach(p=>{const st=getInv(c,p).status;if(st==='ok')ok++;else if(st==='low')low++;else if(st==='out')out++;else na++;});
+  }
+  document.getElementById('inv-resumen').innerHTML=`
+    <div class="res-card res-ok"><div class="res-num">${ok}</div><div class="res-lbl">Suficiente</div></div>
+    <div class="res-card res-low"><div class="res-num">${low}</div><div class="res-lbl">Poco</div></div>
+    <div class="res-card res-out"><div class="res-num">${out}</div><div class="res-lbl">Agotado</div></div>
+    <div class="res-card res-na"><div class="res-num">${na}</div><div class="res-lbl">Sin revisar</div></div>`;
+}
+
+async function addProducto(){
+  const nombre=prompt('Nombre del producto a añadir:');
+  if(!nombre?.trim())return;
+  if(!customProductos[catInv])customProductos[catInv]=[];
+  if(!customProductos[catInv].includes(nombre.trim())){
+    customProductos[catInv].push(nombre.trim());
+    renderInv();
+  }
+}
+
+// ─── ADMIN ───────────────────────────────────────────────────
+async function cargarAdmin(){
+  const tipo=document.getElementById('f-tipo').value;
+  const resp=document.getElementById('f-resp').value;
+  const body=document.getElementById('admin-body');
+  body.innerHTML='<div class="loading">Cargando...</div>';
+  try{
+    if(tipo==='limpieza'){
+      let q=sb.from('checklist_limpieza').select('*').order('fecha',{ascending:false}).order('turno').limit(200);
+      if(resp)q=q.eq('responsable',resp);
+      const{data}=await q;
+      if(!data?.length){body.innerHTML='<div class="empty-admin">Sin registros aún</div>';return;}
+      // agrupar por fecha+turno
+      const grupos={};
+      data.forEach(r=>{
+        const k=`${r.fecha}__${r.turno}`;
+        if(!grupos[k])grupos[k]={fecha:r.fecha,turno:r.turno,responsable:r.responsable,items:[]};
+        grupos[k].items.push(r);
+      });
+      let html='';
+      Object.values(grupos).forEach(g=>{
+        const done=g.items.filter(i=>i.completado).length;
+        const total=g.items.length;
+        const pct=Math.round(done/total*100);
+        const fecha=new Date(g.fecha+'T12:00:00').toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'});
+        html+=`<div class="admin-card">
+          <div class="admin-card-top">
+            <div>
+              <div class="admin-fecha">${fecha}</div>
+              <div class="admin-resp">${g.responsable} · <span class="admin-turno">${g.turno==='M'?'☀️ Matutino':'🌙 Vespertino'}</span></div>
+            </div>
+            <div style="text-align:right">
+              <div class="admin-pct">${pct}%</div>
+              <div class="admin-sub">${done}/${total} actividades</div>
+            </div>
+          </div>
+          <div class="admin-items">
+            ${g.items.map(i=>`<span class="admin-item${i.completado?' done':''}">${i.completado?'✓':''} ${i.actividad}</span>`).join('')}
+          </div>
+        </div>`;
+      });
+      body.innerHTML=html;
+    } else {
+      let q=sb.from('inventario').select('*').order('fecha',{ascending:false}).limit(200);
+      if(resp)q=q.eq('responsable',resp);
+      const{data}=await q;
+      if(!data?.length){body.innerHTML='<div class="empty-admin">Sin registros aún</div>';return;}
+      const grupos={};
+      data.forEach(r=>{
+        const k=`${r.fecha}__${r.tipo}`;
+        if(!grupos[k])grupos[k]={fecha:r.fecha,tipo:r.tipo,responsable:r.responsable,items:[]};
+        grupos[k].items.push(r);
+      });
+      let html='';
+      Object.values(grupos).forEach(g=>{
+        const out=g.items.filter(i=>i.status==='out').length;
+        const low=g.items.filter(i=>i.status==='low').length;
+        const fecha=new Date(g.fecha+'T12:00:00').toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'});
+        html+=`<div class="admin-card">
+          <div class="admin-card-top">
+            <div>
+              <div class="admin-fecha">${fecha} · ${g.tipo==='bebidas'?'☕ Bebidas':'🥐 Alimentos'}</div>
+              <div class="admin-resp">${g.responsable}</div>
+            </div>
+            <div style="text-align:right">
+              ${out?`<div style="color:var(--out);font-weight:500">✕ ${out} agotado${out>1?'s':''}</div>`:''}
+              ${low?`<div style="color:var(--low);font-weight:500">⚠ ${low} poco${low>1?'s':''}</div>`:''}
+              ${!out&&!low?`<div style="color:var(--ok);font-weight:500">✓ Todo bien</div>`:''}
+            </div>
+          </div>
+          <div class="admin-items">
+            ${g.items.filter(i=>i.status==='out'||i.status==='low').map(i=>`<span class="admin-item${i.status==='out'?' done':''}">${i.status==='out'?'✕':'⚠'} ${i.producto}</span>`).join('')}
+          </div>
+        </div>`;
+      });
+      body.innerHTML=html;
+    }
+  }catch(e){body.innerHTML='<div class="empty-admin">Error al cargar datos</div>';}
+}
+
+// ─── INIT ────────────────────────────────────────────────────
+async function init(){
+  document.getElementById('fecha-hdr').textContent=new Date().toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'});
+  selectedDay=(new Date().getDay()+6)%7;
+  renderWeekLbl();
+  renderDays();
+  const fechaHoy=fmtDate(dayDate(weekOffset,selectedDay));
+  await cargarDiaDesdeDB(fechaHoy);
+  await cargarInvDesdeDB();
+  renderChecklist();
+  renderResp();
+}
+
+init();
+</script>
+</body>
+</html>
