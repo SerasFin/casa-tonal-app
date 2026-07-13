@@ -49,7 +49,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--texto);mi
 .tab-btn.activo{background:var(--cafe-light);border-color:var(--cafe-light);color:var(--crema);font-weight:500}
 
 /* STATS */
-.stats-bar{display:grid;grid-template-columns:repeat(4,1fr);gap:.75rem;padding:1.25rem 1.5rem}
+.stats-bar{display:grid;grid-template-columns:repeat(5,1fr);gap:.75rem;padding:1.25rem 1.5rem}
 .stat-card{background:var(--bg2);border:1px solid rgba(245,237,214,.08);border-radius:var(--radio);padding:.85rem 1rem}
 .stat-label{font-size:11px;color:var(--crema-dim);font-family:'DM Mono',monospace;letter-spacing:.5px;margin-bottom:.35rem}
 .stat-valor{font-family:'Playfair Display',serif;font-size:22px;color:var(--crema)}
@@ -58,6 +58,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--texto);mi
 .stat-card.gasto-card .stat-valor{color:#d4a843}
 .stat-card.ganancia-card{border-color:rgba(29,106,53,.4)}
 .stat-card.ganancia-card .stat-valor{color:#5cb87a}
+.stat-card.cancelado-card{border-color:rgba(139,26,26,.4)}
+.stat-card.cancelado-card .stat-valor{color:#e06060}
 
 /* VISTAS */
 .vista{display:none;padding:0 1.5rem 1.5rem}
@@ -247,10 +249,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--texto);mi
   </div>
 
   <div class="stats-bar" id="stats-bar">
-    <div class="stat-card"><div class="stat-label">HOY</div><div class="stat-valor" id="stat-hoy">0</div><div class="stat-sub">pedidos</div></div>
+    <div class="stat-card"><div class="stat-label">HOY</div><div class="stat-valor" id="stat-hoy">0</div><div class="stat-sub">pedidos totales</div></div>
     <div class="stat-card"><div class="stat-label">VENTAS HOY</div><div class="stat-valor" id="stat-ventas">$0</div><div class="stat-sub">ingresos</div></div>
     <div class="stat-card gasto-card"><div class="stat-label">GASTOS HOY</div><div class="stat-valor" id="stat-gastos">$0</div><div class="stat-sub">registrado</div></div>
     <div class="stat-card ganancia-card"><div class="stat-label">GANANCIA</div><div class="stat-valor" id="stat-ganancia">$0</div><div class="stat-sub">neta del día</div></div>
+    <div class="stat-card cancelado-card"><div class="stat-label">CANCELADOS</div><div class="stat-valor" id="stat-cancelados">0</div><div class="stat-sub">transacciones</div></div>
   </div>
 
   <div class="vista activa" id="vista-lista">
@@ -448,11 +451,13 @@ function mostrarNotifToast(titulo,body){
 }
 
 // ─── RENDER ───────────────────────────────────────────────────
-function renderTodo(){ actualizarStats(); if(tabActual==='lista')renderLista(); else renderKanban(); }
+function renderTodo(){ actualizarStats(); if(tabActual==='lista')renderLista(); }
 function actualizarStats(){
+  const cancelados=pedidos.filter(p=>p.estado==='cancelado').length;
   const ventas=pedidos.filter(p=>p.estado!=='cancelado').reduce((s,p)=>s+Number(p.total),0);
   document.getElementById('stat-hoy').textContent=pedidos.length;
   document.getElementById('stat-ventas').textContent='$'+Math.round(ventas).toLocaleString();
+  document.getElementById('stat-cancelados').textContent=cancelados;
   actualizarStatsGasto();
 }
 function filtrar(estado,btn){
