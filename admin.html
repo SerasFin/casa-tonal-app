@@ -138,6 +138,51 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--texto);mi
 .notif-titulo{font-size:14px;font-weight:500;color:var(--crema);margin-bottom:.25rem}
 .notif-body{font-size:12px;color:var(--crema-dim)}
 .empty-state{text-align:center;padding:3rem;color:var(--crema-dim);font-size:14px}
+
+/* CALENDARIO */
+.cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;padding:0 4px}
+.cal-nav-btn{background:var(--bg2);border:1px solid rgba(245,237,214,.15);border-radius:8px;color:var(--crema);font-size:18px;width:36px;height:36px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.cal-nav-btn:hover{border-color:rgba(245,237,214,.4)}
+.cal-mes-lbl{font-family:'Playfair Display',serif;font-size:18px;color:var(--crema);text-transform:capitalize}
+.cal-dias-semana{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:6px}
+.cal-dias-semana span{text-align:center;font-size:11px;color:var(--crema-dim);font-family:'DM Mono',monospace;padding:4px 0}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:16px}
+.cal-dia{min-height:56px;border-radius:8px;border:1px solid rgba(245,237,214,.06);background:var(--bg2);padding:6px;cursor:pointer;transition:all .15s;position:relative}
+.cal-dia:hover{border-color:rgba(245,237,214,.25)}
+.cal-dia.vacio{background:transparent;border-color:transparent;cursor:default}
+.cal-dia.hoy{border-color:var(--cafe-light)!important}
+.cal-dia.seleccionado{border-color:rgba(245,237,214,.5);background:var(--bg3)}
+.cal-dia.con-ventas{border-color:rgba(29,106,53,.4)}
+.cal-dia.con-ventas.seleccionado{border-color:#5cb87a}
+.cal-dia-num{font-size:12px;font-weight:500;color:var(--crema-dim)}
+.cal-dia.hoy .cal-dia-num{color:var(--crema);font-weight:600}
+.cal-dia.con-ventas .cal-dia-num{color:var(--crema)}
+.cal-dia-monto{font-size:11px;color:#5cb87a;margin-top:3px;font-weight:500}
+.cal-dia-gastos{font-size:10px;color:#d4a843;margin-top:1px}
+.cal-dia-dot{width:5px;height:5px;border-radius:50%;background:#5cb87a;position:absolute;bottom:6px;right:6px}
+
+/* DETALLE DÍA */
+.cal-detalle{background:var(--bg2);border:1px solid rgba(245,237,214,.1);border-radius:var(--radio);padding:16px;margin-top:4px}
+.cal-detalle-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px}
+.cal-detalle-fecha{font-family:'Playfair Display',serif;font-size:18px;color:var(--crema)}
+.cal-detalle-sub{font-size:12px;color:var(--crema-dim);margin-top:2px}
+.cal-excel-btn{background:rgba(29,106,53,.3);border:1px solid var(--verde);border-radius:8px;color:#5cb87a;font-size:12px;font-weight:500;padding:6px 14px;cursor:pointer;font-family:'DM Sans',sans-serif;white-space:nowrap}
+.cal-excel-btn:hover{background:rgba(29,106,53,.5)}
+.cal-stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+.cal-stat{background:var(--bg3);border-radius:8px;padding:10px 12px;border:1px solid rgba(245,237,214,.06)}
+.cal-stat-lbl{font-size:10px;color:var(--crema-dim);font-family:'DM Mono',monospace;letter-spacing:.5px;margin-bottom:4px}
+.cal-stat-val{font-family:'Playfair Display',serif;font-size:18px;color:var(--crema)}
+.cal-stat-val.verde{color:#5cb87a}
+.cal-stat-val.amarillo{color:#d4a843}
+.cal-stat-val.rojo{color:#e06060}
+.cal-registros-titulo{font-size:11px;color:var(--crema-dim);font-family:'DM Mono',monospace;letter-spacing:.5px;margin-bottom:8px}
+.cal-pedido-row{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:var(--bg3);border-radius:8px;margin-bottom:5px;border:1px solid rgba(245,237,214,.06)}
+.cal-pedido-id{font-family:'DM Mono',monospace;font-size:12px;color:var(--crema-dim)}
+.cal-pedido-info{font-size:12px;color:var(--crema-dim)}
+.cal-pedido-total{font-family:'Playfair Display',serif;font-size:14px;color:var(--crema)}
+.cal-pedido-estado{font-size:10px;padding:2px 7px;border-radius:20px}
+.cal-empty{text-align:center;padding:24px;color:var(--crema-dim);font-size:13px}
+.cal-loading{text-align:center;padding:20px;color:var(--crema-dim);font-size:13px}
 </style>
 </head>
 <body>
@@ -198,7 +243,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--texto);mi
 
   <div class="tabs-bar">
     <button class="tab-btn activo" onclick="cambiarTab('lista',this)">Lista</button>
-    <button class="tab-btn" onclick="cambiarTab('kanban',this)">Kanban</button>
+    <button class="tab-btn" onclick="cambiarTab('calendario',this)">📅 Calendario</button>
   </div>
 
   <div class="stats-bar" id="stats-bar">
@@ -219,8 +264,34 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--texto);mi
     <div class="pedidos-lista" id="pedidos-lista"><div class="empty-state">Cargando pedidos...</div></div>
   </div>
 
-  <div class="vista" id="vista-kanban">
-    <div class="kanban" id="kanban-board"></div>
+  <div class="vista" id="vista-calendario">
+
+    <!-- NAV MES -->
+    <div class="cal-nav">
+      <button class="cal-nav-btn" onclick="cambiarMes(-1)">‹</button>
+      <span class="cal-mes-lbl" id="cal-mes-lbl"></span>
+      <button class="cal-nav-btn" onclick="cambiarMes(1)">›</button>
+    </div>
+
+    <!-- GRID CALENDARIO -->
+    <div class="cal-dias-semana">
+      <span>Lun</span><span>Mar</span><span>Mié</span><span>Jue</span><span>Vie</span><span>Sáb</span><span>Dom</span>
+    </div>
+    <div class="cal-grid" id="cal-grid"></div>
+
+    <!-- DETALLE DÍA -->
+    <div class="cal-detalle" id="cal-detalle" style="display:none">
+      <div class="cal-detalle-header">
+        <div>
+          <div class="cal-detalle-fecha" id="cal-det-fecha"></div>
+          <div class="cal-detalle-sub" id="cal-det-sub"></div>
+        </div>
+        <button class="cal-excel-btn" onclick="generarReporteDia()">⬇ Excel</button>
+      </div>
+      <div class="cal-stats-row" id="cal-det-stats"></div>
+      <div class="cal-registros" id="cal-det-registros"></div>
+    </div>
+
   </div>
 </div>
 
@@ -429,13 +500,189 @@ function accionesPedido(p,esAdmin){
   if(esAdmin&&p.estado!=='entregado')btns+=`<button class="accion-btn btn-cancelar" onclick="cambiarEstado('${p.id}','cancelado')">Cancelar</button>`;
   return btns+'</div>';
 }
-function renderKanban(){
-  const cols=[{id:'recibido',label:'RECIBIDO',color:'#e06060'},{id:'preparando',label:'PREPARANDO',color:'#d4a843'},{id:'en_camino',label:'EN CAMINO',color:'#6fa3e0'},{id:'entregado',label:'ENTREGADO',color:'#5cb87a'}];
-  document.getElementById('kanban-board').innerHTML=cols.map(col=>{
-    const items=pedidos.filter(p=>p.estado===col.id);
-    return `<div class="kanban-col"><div class="kanban-header"><span class="kanban-titulo" style="color:${col.color}">${col.label}</span><span class="kanban-count">${items.length}</span></div>
-    <div class="kanban-items">${items.length?items.map(p=>`<div class="kanban-card" onclick="cambiarTab('lista',document.querySelectorAll('.tab-btn')[0]);setTimeout(()=>toggleCard('${p.id}'),100)"><div class="kanban-nombre">${p.clientes?.nombre||'Cliente'}</div><div class="kanban-detalle">${p.tipo==='domicilio'?'🛵':'🏠'} · ${p.pago==='efectivo'?'💵':'📱'}<br>#${p.id.slice(-6).toUpperCase()} · ${formatHora(p)}</div><div class="kanban-total">$${Math.round(p.total)}</div></div>`).join(''):'<div class="kanban-vacio">vacío</div>'}</div></div>`;
-  }).join('');
+// ─── CALENDARIO ───────────────────────────────────────────────
+let calAnio=new Date().getFullYear();
+let calMes=new Date().getMonth();
+let calDiaSeleccionado=null;
+let calResumenMes={};  // { 'YYYY-MM-DD': {ventas, gastos, pedidos} }
+let calDiaPedidos=[];  // pedidos del día seleccionado
+
+async function iniciarCalendario(){
+  await cargarResumenMes();
+  renderCalendario();
+}
+
+function cambiarMes(delta){
+  calMes+=delta;
+  if(calMes>11){calMes=0;calAnio++;}
+  if(calMes<0){calMes=11;calAnio--;}
+  calDiaSeleccionado=null;
+  document.getElementById('cal-detalle').style.display='none';
+  cargarResumenMes().then(renderCalendario);
+}
+
+async function cargarResumenMes(){
+  calResumenMes={};
+  const primerDia=`${calAnio}-${String(calMes+1).padStart(2,'0')}-01`;
+  const ultimoDia=`${calAnio}-${String(calMes+1).padStart(2,'0')}-${new Date(calAnio,calMes+1,0).getDate()}`;
+  try{
+    // Pedidos del mes
+    const{data:peds}=await sb.from('pedidos')
+      .select('id,total,estado,creado_en_local')
+      .not('creado_en_local','is',null)
+      .neq('estado','cancelado');
+    (peds||[]).forEach(p=>{
+      const partes=p.creado_en_local.split(',')[0].trim().split('/');
+      if(partes.length<3)return;
+      // formato dd/mm/yyyy
+      const fecha=`${partes[2]}-${partes[1].padStart(2,'0')}-${partes[0].padStart(2,'0')}`;
+      if(fecha<primerDia||fecha>ultimoDia)return;
+      if(!calResumenMes[fecha])calResumenMes[fecha]={ventas:0,gastos:0,pedidos:0};
+      calResumenMes[fecha].ventas+=Number(p.total);
+      calResumenMes[fecha].pedidos+=1;
+    });
+    // Gastos del mes
+    const{data:gastos}=await sb.from('gastos_diarios')
+      .select('fecha,importe')
+      .gte('fecha',primerDia).lte('fecha',ultimoDia);
+    (gastos||[]).forEach(g=>{
+      if(!calResumenMes[g.fecha])calResumenMes[g.fecha]={ventas:0,gastos:0,pedidos:0};
+      calResumenMes[g.fecha].gastos=Number(g.importe);
+    });
+  }catch(e){console.error(e);}
+}
+
+function renderCalendario(){
+  const meses=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  document.getElementById('cal-mes-lbl').textContent=`${meses[calMes]} ${calAnio}`;
+  const hoyStr=fechaHoyMex();
+  const primerDia=new Date(calAnio,calMes,1);
+  const diasEnMes=new Date(calAnio,calMes+1,0).getDate();
+  // lunes=0 … domingo=6
+  let inicioOffset=(primerDia.getDay()+6)%7;
+  let html='';
+  for(let i=0;i<inicioOffset;i++) html+=`<div class="cal-dia vacio"></div>`;
+  for(let d=1;d<=diasEnMes;d++){
+    const fechaStr=`${calAnio}-${String(calMes+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const res=calResumenMes[fechaStr];
+    const esHoy=fechaStr===hoyStr;
+    const esSel=fechaStr===calDiaSeleccionado;
+    const tieneVentas=res&&res.ventas>0;
+    let cls='cal-dia';
+    if(tieneVentas)cls+=' con-ventas';
+    if(esHoy)cls+=' hoy';
+    if(esSel)cls+=' seleccionado';
+    html+=`<div class="${cls}" onclick="seleccionarDia('${fechaStr}')">
+      <div class="cal-dia-num">${d}</div>
+      ${res&&res.ventas>0?`<div class="cal-dia-monto">$${Math.round(res.ventas).toLocaleString()}</div>`:''}
+      ${res&&res.gastos>0?`<div class="cal-dia-gastos">-$${Math.round(res.gastos).toLocaleString()}</div>`:''}
+      ${tieneVentas?`<div class="cal-dia-dot"></div>`:''}
+    </div>`;
+  }
+  document.getElementById('cal-grid').innerHTML=html;
+}
+
+async function seleccionarDia(fecha){
+  calDiaSeleccionado=fecha;
+  renderCalendario();
+  const det=document.getElementById('cal-detalle');
+  det.style.display='block';
+  document.getElementById('cal-det-registros').innerHTML='<div class="cal-loading">Cargando...</div>';
+
+  // Fecha legible
+  const [anio,mes,dia]=fecha.split('-');
+  const meses=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  const fechaLabel=`${parseInt(dia)} de ${meses[parseInt(mes)-1]} de ${anio}`;
+  document.getElementById('cal-det-fecha').textContent=fechaLabel;
+
+  // Stats del día
+  const res=calResumenMes[fecha]||{ventas:0,gastos:0,pedidos:0};
+  const ganancia=res.ventas-res.gastos;
+  document.getElementById('cal-det-sub').textContent=`${res.pedidos} pedido${res.pedidos!==1?'s':''}`;
+  document.getElementById('cal-det-stats').innerHTML=`
+    <div class="cal-stat"><div class="cal-stat-lbl">VENTAS</div><div class="cal-stat-val verde">$${Math.round(res.ventas).toLocaleString()}</div></div>
+    <div class="cal-stat"><div class="cal-stat-lbl">GASTOS</div><div class="cal-stat-val amarillo">$${Math.round(res.gastos).toLocaleString()}</div></div>
+    <div class="cal-stat"><div class="cal-stat-lbl">GANANCIA</div><div class="cal-stat-val ${ganancia>=0?'verde':'rojo'}">$${Math.round(ganancia).toLocaleString()}</div></div>`;
+
+  // Pedidos individuales del día
+  try{
+    const{data:peds}=await sb.from('pedidos')
+      .select('id,total,estado,pago,tipo,creado_en_local,notas')
+      .not('creado_en_local','is',null)
+      .order('creado_en_local',{ascending:true});
+    calDiaPedidos=(peds||[]).filter(p=>{
+      const partes=p.creado_en_local.split(',')[0].trim().split('/');
+      if(partes.length<3)return false;
+      const f=`${partes[2]}-${partes[1].padStart(2,'0')}-${partes[0].padStart(2,'0')}`;
+      return f===fecha;
+    });
+    if(!calDiaPedidos.length){
+      document.getElementById('cal-det-registros').innerHTML='<div class="cal-empty">Sin pedidos registrados este día</div>';
+      return;
+    }
+    let html=`<div class="cal-registros-titulo">PEDIDOS DEL DÍA</div>`;
+    calDiaPedidos.forEach(p=>{
+      const hora=p.creado_en_local.split(',')[1]?.trim().substring(0,5)||'';
+      const estadoCls={'recibido':'estado-recibido','preparando':'estado-preparando','en_camino':'estado-en_camino','listo':'estado-listo','entregado':'estado-entregado','cancelado':'estado-cancelado'}[p.estado]||'';
+      html+=`<div class="cal-pedido-row">
+        <div>
+          <div class="cal-pedido-id">#${p.id.slice(-6).toUpperCase()} · ${hora}</div>
+          <div class="cal-pedido-info">${p.tipo==='domicilio'?'🛵':'🏠'} · ${p.pago==='efectivo'?'💵 Efectivo':'📱 MercadoPago'}</div>
+        </div>
+        <div style="text-align:right">
+          <div class="cal-pedido-total">$${Math.round(p.total)}</div>
+          <span class="cal-pedido-estado chip-estado ${estadoCls}">${labelEstado(p.estado)}</span>
+        </div>
+      </div>`;
+    });
+    document.getElementById('cal-det-registros').innerHTML=html;
+  }catch(e){
+    document.getElementById('cal-det-registros').innerHTML='<div class="cal-empty">Error al cargar pedidos</div>';
+  }
+}
+
+async function generarReporteDia(){
+  if(!calDiaSeleccionado){return;}
+  const [anio,mes,dia]=calDiaSeleccionado.split('-');
+  const meses=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  const fechaLabel=`${parseInt(dia)} de ${meses[parseInt(mes)-1]} de ${anio}`;
+  const res=calResumenMes[calDiaSeleccionado]||{ventas:0,gastos:0,pedidos:0};
+  const ganancia=res.ventas-res.gastos;
+  const nombreArchivo=`reporte_${calDiaSeleccionado}`;
+
+  // CSV 1 — Ventas y ganancia del día
+  let csv=`REPORTE · ${fechaLabel}\n\n`;
+  csv+=`#Pedido,Hora,Tipo,Pago,Estado,Total\n`;
+  calDiaPedidos.forEach(p=>{
+    const hora=p.creado_en_local.split(',')[1]?.trim().substring(0,5)||'';
+    csv+=`#${p.id.slice(-6).toUpperCase()},${hora},${p.tipo},${p.pago},${p.estado},$${Math.round(p.total)}\n`;
+  });
+  csv+=`\nTOTAL VENTAS,,,,,${Math.round(res.ventas)}\n`;
+  csv+=`GASTOS DEL DÍA,,,,,${Math.round(res.gastos)}\n`;
+  csv+=`GANANCIA NETA,,,,,${Math.round(ganancia)}\n`;
+  csv+=`NÚMERO DE PEDIDOS,,,,,${calDiaPedidos.length}\n`;
+  descargarCSV(csv,`${nombreArchivo}_ventas.csv`);
+
+  // CSV 2 — Productos del día
+  const ids=calDiaPedidos.map(p=>p.id);
+  if(ids.length){
+    const{data:items}=await sb.from('pedido_items')
+      .select('*, productos!pedido_items_producto_id_fkey(nombre)')
+      .in('pedido_id',ids);
+    const conteo={};
+    (items||[]).forEach(i=>{
+      const n=i.productos?.nombre||'Desconocido';
+      if(!conteo[n])conteo[n]={cantidad:0,total:0};
+      conteo[n].cantidad+=i.cantidad;
+      conteo[n].total+=Number(i.subtotal);
+    });
+    let csv2=`PRODUCTOS · ${fechaLabel}\n\nProducto,Unidades,Total\n`;
+    Object.entries(conteo).sort((a,b)=>b[1].cantidad-a[1].cantidad).forEach(([n,d])=>{
+      csv2+=`${n},${d.cantidad},$${Math.round(d.total)}\n`;
+    });
+    descargarCSV(csv2,`${nombreArchivo}_productos.csv`);
+  }
+  mostrarNotifToast('⬇ Reporte descargado',fechaLabel);
 }
 async function cambiarEstado(id,estado){
   await sb.from('pedidos').update({estado}).eq('id',id);
@@ -451,8 +698,9 @@ function cambiarTab(tab,btn){
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('activo'));
   btn.classList.add('activo');
   document.getElementById('vista-lista').classList.toggle('activa',tab==='lista');
-  document.getElementById('vista-kanban').classList.toggle('activa',tab==='kanban');
-  renderTodo();
+  document.getElementById('vista-calendario').classList.toggle('activa',tab==='calendario');
+  if(tab==='calendario') iniciarCalendario();
+  if(tab==='lista') renderTodo();
 }
 function labelEstado(e){return {'recibido':'Recibido','preparando':'Preparando','en_camino':'En camino','listo':'Listo','entregado':'Entregado','cancelado':'Cancelado'}[e]||e;}
 function formatHora(p){
