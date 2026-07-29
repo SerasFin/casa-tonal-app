@@ -298,7 +298,12 @@ let calResumen={}, calDiaSel=null;
 
 // ─── UTILS ───────────────────────────────────────────────────
 function fechaHoy(){
-  return new Date().toLocaleDateString('es-MX',{timeZone:'America/Mexico_City',year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
+  const ahora = new Date();
+  const mx = new Date(ahora.toLocaleString('en-US', {timeZone:'America/Mexico_City'}));
+  const anio = mx.getFullYear();
+  const mes = String(mx.getMonth()+1).padStart(2,'0');
+  const dia = String(mx.getDate()).padStart(2,'0');
+  return `${anio}-${mes}-${dia}`;
 }
 function notif(msg){ const n=document.getElementById('notif'); n.textContent=msg; n.classList.remove('show'); void n.offsetWidth; n.classList.add('show'); }
 function esc(s){ return (s||'').replace(/'/g,"&#39;").replace(/"/g,'&quot;'); }
