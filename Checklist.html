@@ -7,6 +7,7 @@
 <meta name="theme-color" content="#5C6B3A">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -265,7 +266,10 @@ textarea.field-input{resize:none}
     <div class="cal-dow"><span>Lun</span><span>Mar</span><span>Mié</span><span>Jue</span><span>Vie</span><span>Sáb</span><span>Dom</span></div>
     <div class="cal-grid" id="cal-grid"></div>
     <div class="cal-detalle" id="cal-detalle" style="display:none">
-      <div class="cal-det-fecha" id="cal-det-fecha"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div class="cal-det-fecha" id="cal-det-fecha" style="margin-bottom:0"></div>
+        <button onclick="descargarExcelDia()" style="background:var(--ok-bg);border:1.5px solid var(--ok-bd);color:var(--ok);border-radius:8px;padding:7px 12px;font-size:12px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;white-space:nowrap">⬇ Excel</button>
+      </div>
       <div id="cal-det-body"></div>
     </div>
     <div class="footer-note">Casa Tonal · Amozoc, Puebla</div>
@@ -687,6 +691,99 @@ async function selDia(fecha){
     document.getElementById('cal-det-body').innerHTML=html;
   }catch(e){
     document.getElementById('cal-det-body').innerHTML='<div class="cal-empty">Error al cargar registros</div>';
+  }
+}
+
+// ─── EXCEL ───────────────────────────────────────────────────
+let calDatosLimpieza=[], calDatosInventario=[];
+
+async function descargarExcelDia(){
+  if(!calDiaSel){ notif('Selecciona un día primero'); return; }
+  notif('Generando Excel...');
+  try{
+    const{data:checkData}=await sb.from('checklist_limpieza').select('*').eq('fecha',calDiaSel).order('turno').order('responsable');
+    const{data:invData}=await sb.from('inventario').select('*').eq('fecha',calDiaSel).order('tipo').order('categoria').order('producto');
+    const wb=XLSX.utils.book_new();
+
+    // ── HOJA 1: LIMPIEZA ──────────────────────────────────────
+    if(checkData?.length){
+      // Columnas: Trabajador | Turno | cada actividad
+      const todasActividades=[...INMUEBLES,...TRABAJO];
+      // Agrupar por responsable+turno
+      const grupos={};
+      checkData.forEach(r=>{
+        const k=`${r.responsable}__${r.turno}`;
+        if(!grupos[k])grupos[k]={responsable:r.responsable,turno:r.turno,checks:{}};
+        grupos[k].checks[r.actividad]=r.completado;
+      });
+      // Encabezado
+      const header=['Trabajador','Turno',...todasActividades,'% Completado'];
+      const wsData=[header];
+      const cellStyles={}; // para colorear
+      Object.values(grupos).forEach((g,rowIdx)=>{
+        const done=todasActividades.filter(a=>g.checks[a]).length;
+        const pct=Math.round(done/todasActividades.length*100)+'%';
+        const fila=[g.responsable, g.turno==='M'?'Matutino':'Vespertino',...todasActividades.map(a=>g.checks[a]?'✓':''),pct];
+        wsData.push(fila);
+      });
+      const ws=XLSX.utils.aoa_to_sheet(wsData);
+      // Ancho de columnas
+      ws['!cols']=[{wch:18},{wch:12},...todasActividades.map(()=>({wch:22})),{wch:14}];
+      // Colorear celdas ✓ en verde
+      wsData.forEach((fila,ri)=>{
+        if(ri===0)return;
+        fila.forEach((val,ci)=>{
+          if(val==='✓'){
+            const cellRef=XLSX.utils.encode_cell({r:ri,c:ci});
+            if(!ws[cellRef])return;
+            ws[cellRef].s={fill:{fgColor:{rgb:'C6EFCE'}},font:{color:{rgb:'276221'},bold:true},alignment:{horizontal:'center'}};
+          }
+        });
+      });
+      XLSX.utils.book_append_sheet(wb, ws, 'Limpieza');
+    } else {
+      const ws=XLSX.utils.aoa_to_sheet([['Sin registros de limpieza para este día']]);
+      XLSX.utils.book_append_sheet(wb, ws, 'Limpieza');
+    }
+
+    // ── HOJA 2: INVENTARIO ────────────────────────────────────
+    if(invData?.length){
+      const header=['Tipo','Categoría','Producto','Estado','Cantidad','Nota','Responsable'];
+      const estadoLabel={ok:'Suficiente',low:'Poco',out:'Agotado',sin_revisar:'Sin revisar'};
+      const wsData=[header,...invData.map(r=>[
+        r.tipo==='bebidas'?'Bebidas':'Alimentos',
+        r.categoria||'',
+        r.producto||'',
+        estadoLabel[r.status]||r.status||'Sin revisar',
+        r.cantidad||'',
+        r.nota||'',
+        r.responsable||''
+      ])];
+      const ws=XLSX.utils.aoa_to_sheet(wsData);
+      ws['!cols']=[{wch:12},{wch:18},{wch:28},{wch:14},{wch:16},{wch:28},{wch:16}];
+      // Colorear por estado
+      wsData.forEach((fila,ri)=>{
+        if(ri===0)return;
+        const estado=fila[3];
+        const cellRef=XLSX.utils.encode_cell({r:ri,c:3});
+        if(!ws[cellRef])return;
+        if(estado==='Suficiente') ws[cellRef].s={fill:{fgColor:{rgb:'C6EFCE'}},font:{color:{rgb:'276221'}}};
+        else if(estado==='Poco')  ws[cellRef].s={fill:{fgColor:{rgb:'FFEB9C'}},font:{color:{rgb:'9C6500'}}};
+        else if(estado==='Agotado') ws[cellRef].s={fill:{fgColor:{rgb:'FFC7CE'}},font:{color:{rgb:'9C0006'}}};
+      });
+      XLSX.utils.book_append_sheet(wb, ws, 'Inventario');
+    } else {
+      const ws=XLSX.utils.aoa_to_sheet([['Sin registros de inventario para este día']]);
+      XLSX.utils.book_append_sheet(wb, ws, 'Inventario');
+    }
+
+    // Descargar
+    const[anio,mes,dia]=calDiaSel.split('-');
+    XLSX.writeFile(wb, `checklist_${calDiaSel}.xlsx`);
+    notif('✅ Excel descargado');
+  }catch(e){
+    console.error(e);
+    notif('Error al generar Excel');
   }
 }
 
