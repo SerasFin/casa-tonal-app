@@ -605,39 +605,85 @@ async function selDia(fecha){
   const meses=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
   document.getElementById('cal-det-fecha').textContent=`${parseInt(dia)} de ${meses[parseInt(mes)-1]} de ${anio}`;
   try{
-    const{data}=await sb.from('checklist_limpieza').select('*').eq('fecha',fecha).order('turno').order('actividad');
-    if(!data?.length){
-      document.getElementById('cal-det-body').innerHTML='<div class="cal-empty">Sin registros para este día</div>';
-      return;
-    }
-    // Agrupar por turno+responsable
-    const grupos={};
-    data.forEach(r=>{
-      const k=`${r.turno}__${r.responsable}`;
-      if(!grupos[k])grupos[k]={turno:r.turno,responsable:r.responsable,items:[]};
-      grupos[k].items.push(r);
-    });
+    // Cargar checklist limpieza
+    const{data:checkData}=await sb.from('checklist_limpieza').select('*').eq('fecha',fecha).order('turno').order('actividad');
+    // Cargar inventario
+    const{data:invData}=await sb.from('inventario').select('*').eq('fecha',fecha).order('tipo').order('categoria').order('producto');
+
     let html='';
-    Object.values(grupos).forEach(g=>{
-      const done=g.items.filter(i=>i.completado).length;
-      const total=g.items.length;
-      const pct=Math.round(done/total*100);
-      html+=`<div class="cal-reporte-card">
-        <div class="cal-reporte-top">
-          <div>
-            <div class="cal-reporte-quien">${g.responsable}</div>
-            <span class="cal-reporte-turno ${g.turno==='M'?'turno-m':'turno-v'}">${g.turno==='M'?'☀️ Matutino':'🌙 Vespertino'}</span>
+
+    // ── SECCIÓN LIMPIEZA ──
+    html+=`<div class="section-lbl" style="margin-top:0">🏠 Checklist de Limpieza</div>`;
+    if(!checkData?.length){
+      html+=`<div class="cal-empty">Sin registros de limpieza este día</div>`;
+    } else {
+      const grupos={};
+      checkData.forEach(r=>{
+        const k=`${r.turno}__${r.responsable}`;
+        if(!grupos[k])grupos[k]={turno:r.turno,responsable:r.responsable,items:[]};
+        grupos[k].items.push(r);
+      });
+      Object.values(grupos).forEach(g=>{
+        const done=g.items.filter(i=>i.completado).length;
+        const total=g.items.length;
+        const pct=Math.round(done/total*100);
+        html+=`<div class="cal-reporte-card">
+          <div class="cal-reporte-top">
+            <div>
+              <div class="cal-reporte-quien">${g.responsable}</div>
+              <span class="cal-reporte-turno ${g.turno==='M'?'turno-m':'turno-v'}">${g.turno==='M'?'☀️ Matutino':'🌙 Vespertino'}</span>
+            </div>
+            <div style="text-align:right">
+              <div class="cal-reporte-pct">${pct}%</div>
+              <div class="cal-reporte-sub">${done}/${total} actividades</div>
+            </div>
           </div>
-          <div style="text-align:right">
-            <div class="cal-reporte-pct">${pct}%</div>
-            <div class="cal-reporte-sub">${done}/${total} actividades</div>
+          <div class="cal-items-wrap">
+            ${g.items.map(i=>`<span class="cal-item-chip${i.completado?' done':''}">${i.completado?'✓':''} ${i.actividad}</span>`).join('')}
           </div>
-        </div>
-        <div class="cal-items-wrap">
-          ${g.items.map(i=>`<span class="cal-item-chip${i.completado?' done':''}">${i.completado?'✓':''} ${i.actividad}</span>`).join('')}
-        </div>
-      </div>`;
-    });
+        </div>`;
+      });
+    }
+
+    // ── SECCIÓN INVENTARIO ──
+    html+=`<div class="section-lbl" style="margin-top:16px">📦 Inventario</div>`;
+    if(!invData?.length){
+      html+=`<div class="cal-empty">Sin registros de inventario este día</div>`;
+    } else {
+      // Agrupar por tipo+responsable
+      const gruposInv={};
+      invData.forEach(r=>{
+        const k=`${r.tipo}__${r.responsable}`;
+        if(!gruposInv[k])gruposInv[k]={tipo:r.tipo,responsable:r.responsable,items:[]};
+        gruposInv[k].items.push(r);
+      });
+      Object.values(gruposInv).forEach(g=>{
+        const agotados=g.items.filter(i=>i.status==='out');
+        const pocos=g.items.filter(i=>i.status==='low');
+        const ok=g.items.filter(i=>i.status==='ok');
+        const sinRevisar=g.items.filter(i=>!i.status||i.status==='sin_revisar');
+        html+=`<div class="cal-reporte-card">
+          <div class="cal-reporte-top">
+            <div>
+              <div class="cal-reporte-quien">${g.responsable}</div>
+              <span class="cal-reporte-turno turno-m">${g.tipo==='bebidas'?'☕ Bebidas':'🥐 Alimentos'}</span>
+            </div>
+            <div style="text-align:right;font-size:12px;line-height:1.6">
+              ${agotados.length?`<div style="color:var(--out)">✕ ${agotados.length} agotado${agotados.length>1?'s':''}</div>`:''}
+              ${pocos.length?`<div style="color:var(--low)">⚠ ${pocos.length} poco${pocos.length>1?'s':''}</div>`:''}
+              ${ok.length?`<div style="color:var(--ok)">✓ ${ok.length} bien</div>`:''}
+              ${sinRevisar.length?`<div style="color:var(--seco)">— ${sinRevisar.length} sin revisar</div>`:''}
+            </div>
+          </div>
+          ${agotados.length||pocos.length?`
+          <div class="cal-items-wrap">
+            ${agotados.map(i=>`<span class="cal-item-chip" style="background:var(--out-bg);border-color:var(--out-bd);color:var(--out)">✕ ${i.producto}</span>`).join('')}
+            ${pocos.map(i=>`<span class="cal-item-chip" style="background:var(--low-bg);border-color:var(--low-bd);color:var(--low)">⚠ ${i.producto}</span>`).join('')}
+          </div>`:''}
+        </div>`;
+      });
+    }
+
     document.getElementById('cal-det-body').innerHTML=html;
   }catch(e){
     document.getElementById('cal-det-body').innerHTML='<div class="cal-empty">Error al cargar registros</div>';
