@@ -298,12 +298,7 @@ let calResumen={}, calDiaSel=null;
 
 // ─── UTILS ───────────────────────────────────────────────────
 function fechaHoy(){
-  const ahora = new Date();
-  const mx = new Date(ahora.toLocaleString('en-US', {timeZone:'America/Mexico_City'}));
-  const anio = mx.getFullYear();
-  const mes = String(mx.getMonth()+1).padStart(2,'0');
-  const dia = String(mx.getDate()).padStart(2,'0');
-  return `${anio}-${mes}-${dia}`;
+  return new Date().toLocaleDateString('es-MX',{timeZone:'America/Mexico_City',year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
 }
 function notif(msg){ const n=document.getElementById('notif'); n.textContent=msg; n.classList.remove('show'); void n.offsetWidth; n.classList.add('show'); }
 function esc(s){ return (s||'').replace(/'/g,"&#39;").replace(/"/g,'&quot;'); }
@@ -571,13 +566,19 @@ async function cargarResumenMes(){
   const primerDia=`${calAnio}-${String(calMes+1).padStart(2,'0')}-01`;
   const ultimoDia=`${calAnio}-${String(calMes+1).padStart(2,'0')}-${new Date(calAnio,calMes+1,0).getDate()}`;
   try{
-    const{data}=await sb.from('checklist_limpieza').select('fecha,turno,responsable,completado').gte('fecha',primerDia).lte('fecha',ultimoDia);
-    (data||[]).forEach(r=>{
-      if(!calResumen[r.fecha])calResumen[r.fecha]={turnos:new Set(),count:0};
+    // Checklist limpieza
+    const{data:checkData}=await sb.from('checklist_limpieza').select('fecha,turno,responsable').gte('fecha',primerDia).lte('fecha',ultimoDia);
+    (checkData||[]).forEach(r=>{
+      if(!calResumen[r.fecha])calResumen[r.fecha]={turnos:new Set(),tieneInv:false};
       calResumen[r.fecha].turnos.add(r.turno);
-      calResumen[r.fecha].count++;
     });
-  }catch(e){}
+    // Inventario
+    const{data:invData}=await sb.from('inventario').select('fecha').gte('fecha',primerDia).lte('fecha',ultimoDia);
+    (invData||[]).forEach(r=>{
+      if(!calResumen[r.fecha])calResumen[r.fecha]={turnos:new Set(),tieneInv:false};
+      calResumen[r.fecha].tieneInv=true;
+    });
+  }catch(e){ console.error(e); }
 }
 
 function renderCalendario(){
@@ -597,10 +598,11 @@ function renderCalendario(){
     if(tieneDatos)cls+=' con-datos';
     if(esHoy)cls+=' hoy';
     if(esSel)cls+=' sel';
-    const turnos=res?[...res.turnos].map(t=>t==='M'?'☀️':'🌙').join(''):'';
+    const turnos=res&&res.turnos?.size?[...res.turnos].map(t=>t==='M'?'☀️':'🌙').join(''):'';
+    const invIco=res?.tieneInv?'📦':'';
     html+=`<div class="${cls}" onclick="selDia('${f}')">
       <div class="cal-dia-num">${d}</div>
-      ${tieneDatos?`<div class="cal-dia-cnt">${turnos}</div>`:''}
+      ${tieneDatos?`<div class="cal-dia-cnt">${turnos}${invIco}</div>`:''}
     </div>`;
   }
   document.getElementById('cal-grid').innerHTML=html;
