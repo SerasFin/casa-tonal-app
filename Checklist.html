@@ -297,7 +297,9 @@ let calAnio=new Date().getFullYear(), calMes=new Date().getMonth();
 let calResumen={}, calDiaSel=null;
 
 // ─── UTILS ───────────────────────────────────────────────────
-function fechaHoy(){ return new Date().toISOString().slice(0,10); }
+function fechaHoy(){
+  return new Date().toLocaleDateString('es-MX',{timeZone:'America/Mexico_City',year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
+}
 function notif(msg){ const n=document.getElementById('notif'); n.textContent=msg; n.classList.remove('show'); void n.offsetWidth; n.classList.add('show'); }
 function esc(s){ return (s||'').replace(/'/g,"&#39;").replace(/"/g,'&quot;'); }
 function escQ(s){ return (s||'').replace(/'/g,"\\'"); }
@@ -695,8 +697,6 @@ async function selDia(fecha){
 }
 
 // ─── EXCEL ───────────────────────────────────────────────────
-let calDatosLimpieza=[], calDatosInventario=[];
-
 async function descargarExcelDia(){
   if(!calDiaSel){ notif('Selecciona un día primero'); return; }
   notif('Generando Excel...');
@@ -706,80 +706,124 @@ async function descargarExcelDia(){
     const wb=XLSX.utils.book_new();
 
     // ── HOJA 1: LIMPIEZA ──────────────────────────────────────
-    if(checkData?.length){
-      // Columnas: Trabajador | Turno | cada actividad
+    {
       const todasActividades=[...INMUEBLES,...TRABAJO];
-      // Agrupar por responsable+turno
+      // Agrupar por responsable+turno — clave única por persona
       const grupos={};
-      checkData.forEach(r=>{
+      (checkData||[]).forEach(r=>{
         const k=`${r.responsable}__${r.turno}`;
         if(!grupos[k])grupos[k]={responsable:r.responsable,turno:r.turno,checks:{}};
         grupos[k].checks[r.actividad]=r.completado;
       });
-      // Encabezado
-      const header=['Trabajador','Turno',...todasActividades,'% Completado'];
-      const wsData=[header];
-      const cellStyles={}; // para colorear
-      Object.values(grupos).forEach((g,rowIdx)=>{
+
+      const wsData=[];
+      // Fila 1: encabezados
+      wsData.push(['Trabajador','Turno',...todasActividades,'% Completado']);
+      // Una fila por persona+turno
+      Object.values(grupos).forEach(g=>{
         const done=todasActividades.filter(a=>g.checks[a]).length;
         const pct=Math.round(done/todasActividades.length*100)+'%';
-        const fila=[g.responsable, g.turno==='M'?'Matutino':'Vespertino',...todasActividades.map(a=>g.checks[a]?'✓':''),pct];
-        wsData.push(fila);
+        wsData.push([
+          g.responsable,
+          g.turno==='M'?'Matutino':'Vespertino',
+          ...todasActividades.map(a=>g.checks[a]?'✓':''),
+          pct
+        ]);
       });
+
+      if(wsData.length===1) wsData.push(['Sin registros de limpieza para este día']);
+
       const ws=XLSX.utils.aoa_to_sheet(wsData);
-      // Ancho de columnas
-      ws['!cols']=[{wch:18},{wch:12},...todasActividades.map(()=>({wch:22})),{wch:14}];
-      // Colorear celdas ✓ en verde
+      ws['!cols']=[{wch:16},{wch:12},...todasActividades.map(()=>({wch:20})),{wch:14}];
+
+      // Verde en celdas ✓
       wsData.forEach((fila,ri)=>{
         if(ri===0)return;
         fila.forEach((val,ci)=>{
           if(val==='✓'){
-            const cellRef=XLSX.utils.encode_cell({r:ri,c:ci});
-            if(!ws[cellRef])return;
-            ws[cellRef].s={fill:{fgColor:{rgb:'C6EFCE'}},font:{color:{rgb:'276221'},bold:true},alignment:{horizontal:'center'}};
+            const ref=XLSX.utils.encode_cell({r:ri,c:ci});
+            if(ws[ref]) ws[ref].s={fill:{fgColor:{rgb:'C6EFCE'}},font:{color:{rgb:'276221'},bold:true},alignment:{horizontal:'center'}};
           }
         });
       });
-      XLSX.utils.book_append_sheet(wb, ws, 'Limpieza');
-    } else {
-      const ws=XLSX.utils.aoa_to_sheet([['Sin registros de limpieza para este día']]);
-      XLSX.utils.book_append_sheet(wb, ws, 'Limpieza');
+      XLSX.utils.book_append_sheet(wb,ws,'Limpieza');
     }
 
     // ── HOJA 2: INVENTARIO ────────────────────────────────────
-    if(invData?.length){
-      const header=['Tipo','Categoría','Producto','Estado','Cantidad','Nota','Responsable'];
-      const estadoLabel={ok:'Suficiente',low:'Poco',out:'Agotado',sin_revisar:'Sin revisar'};
-      const wsData=[header,...invData.map(r=>[
-        r.tipo==='bebidas'?'Bebidas':'Alimentos',
-        r.categoria||'',
-        r.producto||'',
-        estadoLabel[r.status]||r.status||'Sin revisar',
-        r.cantidad||'',
-        r.nota||'',
-        r.responsable||''
-      ])];
-      const ws=XLSX.utils.aoa_to_sheet(wsData);
-      ws['!cols']=[{wch:12},{wch:18},{wch:28},{wch:14},{wch:16},{wch:28},{wch:16}];
-      // Colorear por estado
-      wsData.forEach((fila,ri)=>{
-        if(ri===0)return;
-        const estado=fila[3];
-        const cellRef=XLSX.utils.encode_cell({r:ri,c:3});
-        if(!ws[cellRef])return;
-        if(estado==='Suficiente') ws[cellRef].s={fill:{fgColor:{rgb:'C6EFCE'}},font:{color:{rgb:'276221'}}};
-        else if(estado==='Poco')  ws[cellRef].s={fill:{fgColor:{rgb:'FFEB9C'}},font:{color:{rgb:'9C6500'}}};
-        else if(estado==='Agotado') ws[cellRef].s={fill:{fgColor:{rgb:'FFC7CE'}},font:{color:{rgb:'9C0006'}}};
+    {
+      // Obtener lista única de productos en el orden del catálogo
+      const todosProductos=[];
+      for(const tipo of['bebidas','alimentos']){
+        for(const items of Object.values(CATALOGO[tipo])){
+          items.forEach(p=>{ if(!todosProductos.includes(p)) todosProductos.push(p); });
+        }
+      }
+
+      // Agrupar por responsable — una fila por persona
+      const grupos={};
+      (invData||[]).forEach(r=>{
+        const k=r.responsable;
+        if(!grupos[k])grupos[k]={responsable:r.responsable,productos:{}};
+        grupos[k].productos[r.producto]={status:r.status,cantidad:r.cantidad||'',nota:r.nota||''};
       });
-      XLSX.utils.book_append_sheet(wb, ws, 'Inventario');
-    } else {
-      const ws=XLSX.utils.aoa_to_sheet([['Sin registros de inventario para este día']]);
-      XLSX.utils.book_append_sheet(wb, ws, 'Inventario');
+
+      // Fila 1: nombre de producto (cada producto ocupa 2 columnas: Cantidad | Nota)
+      const fila1=['Nombre'];
+      todosProductos.forEach(p=>{ fila1.push(p,''); });
+      // Fila 2: sub-encabezados Cantidad | Nota
+      const fila2=[''];
+      todosProductos.forEach(()=>{ fila2.push('Cantidad','Nota'); });
+
+      const wsData=[fila1,fila2];
+
+      // Una fila por responsable
+      Object.values(grupos).forEach(g=>{
+        const fila=[g.responsable];
+        todosProductos.forEach(p=>{
+          const d=g.productos[p];
+          if(d){
+            fila.push(d.cantidad||'',d.nota||'');
+          } else {
+            fila.push('','');
+          }
+        });
+        wsData.push(fila);
+      });
+
+      if(wsData.length===2) wsData.push(['Sin registros de inventario para este día']);
+
+      const ws=XLSX.utils.aoa_to_sheet(wsData);
+
+      // Combinar celdas del encabezado de producto (cada uno ocupa 2 columnas)
+      if(!ws['!merges']) ws['!merges']=[];
+      todosProductos.forEach((_,i)=>{
+        const col=1+(i*2);
+        ws['!merges'].push({s:{r:0,c:col},e:{r:0,c:col+1}});
+      });
+
+      // Anchos: nombre=16, luego pares Cantidad+Nota
+      ws['!cols']=[{wch:16},...todosProductos.flatMap(()=>[{wch:14},{wch:24}])];
+
+      // Colorear cantidad según status
+      (invData||[]).forEach(r=>{
+        const colIdx=todosProductos.indexOf(r.producto);
+        if(colIdx<0)return;
+        const responsables=Object.keys(grupos);
+        const rowIdx=responsables.indexOf(r.responsable);
+        if(rowIdx<0)return;
+        const ri=rowIdx+2; // +2 por las 2 filas de encabezado
+        const ci=1+(colIdx*2); // columna Cantidad
+        const ref=XLSX.utils.encode_cell({r:ri,c:ci});
+        if(!ws[ref])return;
+        if(r.status==='ok')       ws[ref].s={fill:{fgColor:{rgb:'C6EFCE'}},font:{color:{rgb:'276221'}}};
+        else if(r.status==='low') ws[ref].s={fill:{fgColor:{rgb:'FFEB9C'}},font:{color:{rgb:'9C6500'}}};
+        else if(r.status==='out') ws[ref].s={fill:{fgColor:{rgb:'FFC7CE'}},font:{color:{rgb:'9C0006'}}};
+      });
+
+      XLSX.utils.book_append_sheet(wb,ws,'Inventario');
     }
 
-    // Descargar
-    const[anio,mes,dia]=calDiaSel.split('-');
-    XLSX.writeFile(wb, `checklist_${calDiaSel}.xlsx`);
+    XLSX.writeFile(wb,`checklist_${calDiaSel}.xlsx`);
     notif('✅ Excel descargado');
   }catch(e){
     console.error(e);
