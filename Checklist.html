@@ -774,25 +774,34 @@ async function descargarExcelDia(){
         grupos[k].productos[r.producto]={status:r.status,cantidad:r.cantidad||'',nota:r.nota||''};
       });
 
+      // ── FILTRAR productos donde TODOS tienen cantidad Y nota vacías ──
+      const responsables=Object.keys(grupos);
+      const productosConDatos=todosProductos.filter(p=>{
+        return responsables.some(r=>{
+          const d=grupos[r].productos[p];
+          return d && (d.cantidad||d.nota);
+        });
+      });
+
+      // Si no hay ningún producto con datos, usar todos
+      const productosFinales=productosConDatos.length>0 ? productosConDatos : todosProductos;
+
       // Fila 1: nombre de producto (cada producto ocupa 2 columnas: Cantidad | Nota)
       const fila1=['Nombre'];
-      todosProductos.forEach(p=>{ fila1.push(p,''); });
+      productosFinales.forEach(p=>{ fila1.push(p,''); });
       // Fila 2: sub-encabezados Cantidad | Nota
       const fila2=[''];
-      todosProductos.forEach(()=>{ fila2.push('Cantidad','Nota'); });
+      productosFinales.forEach(()=>{ fila2.push('Cantidad','Nota'); });
 
       const wsData=[fila1,fila2];
 
       // Una fila por responsable
       Object.values(grupos).forEach(g=>{
         const fila=[g.responsable];
-        todosProductos.forEach(p=>{
+        productosFinales.forEach(p=>{
           const d=g.productos[p];
-          if(d){
-            fila.push(d.cantidad||'',d.nota||'');
-          } else {
-            fila.push('','');
-          }
+          if(d){ fila.push(d.cantidad||'',d.nota||''); }
+          else { fila.push('',''); }
         });
         wsData.push(fila);
       });
@@ -803,23 +812,22 @@ async function descargarExcelDia(){
 
       // Combinar celdas del encabezado de producto (cada uno ocupa 2 columnas)
       if(!ws['!merges']) ws['!merges']=[];
-      todosProductos.forEach((_,i)=>{
+      productosFinales.forEach((_,i)=>{
         const col=1+(i*2);
         ws['!merges'].push({s:{r:0,c:col},e:{r:0,c:col+1}});
       });
 
       // Anchos: nombre=16, luego pares Cantidad+Nota
-      ws['!cols']=[{wch:16},...todosProductos.flatMap(()=>[{wch:14},{wch:24}])];
+      ws['!cols']=[{wch:16},...productosFinales.flatMap(()=>[{wch:14},{wch:24}])];
 
       // Colorear cantidad según status
       (invData||[]).forEach(r=>{
-        const colIdx=todosProductos.indexOf(r.producto);
-        if(colIdx<0)return;
-        const responsables=Object.keys(grupos);
+        const colIdx=productosFinales.indexOf(r.producto);
+        if(colIdx<0)return; // producto filtrado, omitir
         const rowIdx=responsables.indexOf(r.responsable);
         if(rowIdx<0)return;
-        const ri=rowIdx+2; // +2 por las 2 filas de encabezado
-        const ci=1+(colIdx*2); // columna Cantidad
+        const ri=rowIdx+2;
+        const ci=1+(colIdx*2);
         const ref=XLSX.utils.encode_cell({r:ri,c:ci});
         if(!ws[ref])return;
         if(r.status==='ok')       ws[ref].s={fill:{fgColor:{rgb:'C6EFCE'}},font:{color:{rgb:'276221'}}};
