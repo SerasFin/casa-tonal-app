@@ -7,6 +7,7 @@
 <meta name="theme-color" content="#1A0F0A">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
@@ -141,7 +142,54 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--texto);mi
 .notif-body{font-size:12px;color:var(--crema-dim)}
 .empty-state{text-align:center;padding:3rem;color:var(--crema-dim);font-size:14px}
 
-/* CALENDARIO */
+/* INSUMOS GASTO */
+.insumos-layout{display:grid;grid-template-columns:1fr 340px;gap:1.5rem;align-items:start}
+.insumos-tabla-wrap{background:var(--bg2);border:1px solid rgba(245,237,214,.08);border-radius:var(--radio);overflow:hidden}
+.insumos-tabla-header{padding:.85rem 1.25rem;border-bottom:1px solid rgba(245,237,214,.08);display:flex;justify-content:space-between;align-items:center}
+.insumos-tabla-title{font-size:14px;font-weight:500;color:var(--crema)}
+.insumos-total-hoy{font-family:'Playfair Display',serif;font-size:18px;color:#d4a843}
+.insumos-search{width:calc(100% - 2.5rem);margin:.75rem 1.25rem;padding:.6rem 1rem;background:var(--bg3);border:1px solid rgba(245,237,214,.1);border-radius:var(--radio-sm);color:var(--crema);font-family:'DM Sans',sans-serif;font-size:13px;outline:none;display:block}
+.insumos-search:focus{border-color:rgba(245,237,214,.3)}
+.insumos-tabla{width:100%;border-collapse:collapse}
+.insumos-tabla th{padding:.6rem 1.25rem;text-align:left;font-size:11px;color:var(--crema-dim);font-family:'DM Mono',monospace;letter-spacing:.5px;border-bottom:1px solid rgba(245,237,214,.06)}
+.insumos-tabla td{padding:.55rem 1.25rem;font-size:13px;border-bottom:.5px solid rgba(245,237,214,.04)}
+.insumos-tabla tr:last-child td{border-bottom:none}
+.insumos-tabla tr:hover td{background:rgba(245,237,214,.03)}
+.insumos-prod{color:var(--crema)}
+.insumos-acum{color:#d4a843;font-family:'DM Mono',monospace;font-size:12px}
+.insumos-input-wrap{display:flex;gap:.5rem;align-items:center}
+.insumos-input{width:100px;padding:.4rem .7rem;background:var(--bg3);border:1px solid rgba(245,237,214,.12);border-radius:var(--radio-sm);color:var(--crema);font-family:'DM Mono',monospace;font-size:13px;outline:none;text-align:right}
+.insumos-input:focus{border-color:rgba(139,105,20,.7)}
+.insumos-save-btn{padding:.4rem .75rem;background:rgba(139,105,20,.3);border:1px solid rgba(139,105,20,.5);border-radius:var(--radio-sm);color:#d4a843;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:500}
+.insumos-save-btn:hover{background:rgba(139,105,20,.5)}
+.insumos-saved{font-size:11px;color:#5cb87a;display:none}
+.insumos-saved.show{display:inline}
+/* CALENDARIO INSUMOS */
+.ins-cal-panel{background:var(--bg2);border:1px solid rgba(245,237,214,.08);border-radius:var(--radio);padding:1.25rem}
+.ins-cal-title{font-size:12px;font-weight:500;color:var(--crema);margin-bottom:.5rem;font-family:'DM Mono',monospace;letter-spacing:.5px}
+.ins-cal-hint{font-size:11px;color:var(--crema-dim);margin-bottom:.75rem;line-height:1.5;padding:.5rem .75rem;background:var(--bg3);border-radius:var(--radio-sm)}
+.ins-cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:.6rem}
+.ins-cal-nav-btn{background:var(--bg3);border:1px solid rgba(245,237,214,.1);border-radius:6px;color:var(--crema-dim);font-size:14px;width:26px;height:26px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.ins-cal-mes{font-size:13px;font-weight:500;color:var(--crema)}
+.ins-cal-dow{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:3px}
+.ins-cal-dow span{text-align:center;font-size:9px;color:var(--crema-dim);padding:2px 0}
+.ins-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.ins-dia{min-height:30px;border-radius:4px;border:1px solid rgba(245,237,214,.05);background:var(--bg3);cursor:pointer;transition:all .12s;font-size:10px;color:var(--crema-dim);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;user-select:none}
+.ins-dia:hover{border-color:rgba(245,237,214,.2)}
+.ins-dia.vacio{background:transparent;border-color:transparent;cursor:default}
+.ins-dia.hoy{border-color:rgba(139,105,20,.5);color:var(--crema)}
+.ins-dia.con-datos{border-color:rgba(29,106,53,.4);color:var(--crema)}
+.ins-dia.en-rango{background:rgba(29,106,53,.12);border-color:rgba(29,106,53,.25)}
+.ins-dia.rango-inicio,.ins-dia.rango-fin{background:rgba(29,106,53,.4);border-color:#5cb87a;color:white;font-weight:600}
+.ins-dia-monto{font-size:8px;color:#5cb87a;line-height:1}
+.ins-cal-acciones{margin-top:.75rem;display:flex;flex-direction:column;gap:.5rem}
+.ins-rango-lbl{font-size:11px;color:var(--crema-dim);padding:.5rem .75rem;background:var(--bg3);border-radius:var(--radio-sm);min-height:30px;display:flex;align-items:center}
+.ins-dl-btn{width:100%;padding:.6rem;border-radius:var(--radio-sm);border:none;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer}
+.ins-dl-dia{background:rgba(29,106,53,.3);border:1px solid var(--verde);color:#5cb87a}
+.ins-dl-dia:hover{background:rgba(29,106,53,.5)}
+.ins-dl-rango{background:rgba(26,58,107,.3);border:1px solid var(--azul);color:#6fa3e0}
+.ins-dl-rango:hover{background:rgba(26,58,107,.5)}
+.ins-dl-btn:disabled{opacity:.3;cursor:not-allowed}
 .cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;padding:0 4px}
 .cal-nav-btn{background:var(--bg2);border:1px solid rgba(245,237,214,.15);border-radius:8px;color:var(--crema);font-size:18px;width:36px;height:36px;cursor:pointer;display:flex;align-items:center;justify-content:center}
 .cal-nav-btn:hover{border-color:rgba(245,237,214,.4)}
@@ -246,6 +294,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--texto);mi
   <div class="tabs-bar">
     <button class="tab-btn activo" onclick="cambiarTab('lista',this)">Lista</button>
     <button class="tab-btn" onclick="cambiarTab('calendario',this)">📅 Calendario</button>
+    <button class="tab-btn" onclick="cambiarTab('insumos',this)">💸 Insumos Gasto</button>
   </div>
 
   <div class="stats-bar" id="stats-bar">
@@ -295,10 +344,50 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--texto);mi
       <div class="cal-registros" id="cal-det-registros"></div>
     </div>
 
-  </div>
-</div>
+  </div><!-- fin vista-calendario -->
 
-<script>
+  <!-- ===== VISTA INSUMOS GASTO ===== -->
+  <div class="vista" id="vista-insumos">
+    <div class="insumos-layout">
+
+      <!-- TABLA DE PRODUCTOS -->
+      <div class="insumos-tabla-wrap">
+        <div class="insumos-tabla-header">
+          <span class="insumos-tabla-title">Gastos por insumo · <span id="ins-fecha-lbl"></span></span>
+          <span class="insumos-total-hoy" id="ins-total-hoy">$0</span>
+        </div>
+        <input class="insumos-search" type="text" placeholder="🔍 Buscar producto..." oninput="filtrarInsumos(this.value)" id="ins-search"/>
+        <table class="insumos-tabla">
+          <thead><tr><th>Producto</th><th>Acumulado hoy</th><th>Agregar gasto</th></tr></thead>
+          <tbody id="ins-tbody"></tbody>
+        </table>
+      </div>
+
+      <!-- CALENDARIO INSUMOS -->
+      <div class="ins-cal-panel">
+        <div class="ins-cal-title">INSUMOS GASTO</div>
+        <div class="ins-cal-hint">
+          <b>Click simple</b> → descarga Excel del día<br>
+          <b>Ctrl + Click</b> → selecciona rango de fechas
+        </div>
+        <div class="ins-cal-nav">
+          <button class="ins-cal-nav-btn" onclick="insCalCambiarMes(-1)">‹</button>
+          <span class="ins-cal-mes" id="ins-cal-mes"></span>
+          <button class="ins-cal-nav-btn" onclick="insCalCambiarMes(1)">›</button>
+        </div>
+        <div class="ins-cal-dow"><span>L</span><span>M</span><span>M</span><span>J</span><span>V</span><span>S</span><span>D</span></div>
+        <div class="ins-cal-grid" id="ins-cal-grid"></div>
+        <div class="ins-cal-acciones">
+          <div class="ins-rango-lbl" id="ins-rango-lbl">Sin rango seleccionado</div>
+          <button class="ins-dl-btn ins-dl-dia" id="ins-dl-dia-btn" onclick="descargarInsumosDia()" disabled>⬇ Excel día seleccionado</button>
+          <button class="ins-dl-btn ins-dl-rango" id="ins-dl-rango-btn" onclick="descargarInsumosRango()" disabled>⬇ Excel rango de fechas</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div><!-- fin app -->
 const SUPA_URL='https://icoikvoemymknqzsegxr.supabase.co';
 const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imljb2lrdm9lbXlta25xenNlZ3hyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3MjMwNTYsImV4cCI6MjA5MDI5OTA1Nn0.Hr4dmj1D_a7zZVNQDomqFSbyUzaB0lfYV8yhHiu8sps';
 
@@ -704,8 +793,306 @@ function cambiarTab(tab,btn){
   btn.classList.add('activo');
   document.getElementById('vista-lista').classList.toggle('activa',tab==='lista');
   document.getElementById('vista-calendario').classList.toggle('activa',tab==='calendario');
+  document.getElementById('vista-insumos').classList.toggle('activa',tab==='insumos');
   if(tab==='calendario') iniciarCalendario();
   if(tab==='lista') renderTodo();
+  if(tab==='insumos') iniciarInsumos();
+}
+
+// ─── CATÁLOGO PRODUCTOS (del checklist inventario) ────────────
+const CATALOGO_INS={
+  bebidas:{"Cafés y base":["Café Oscuro","Café Medio","Café Honey","Chocolate Líquido","Chocolate en Polvo"],"Leches":["Leche Entera","Leche Deslactosada","Leche Evaporada","Crema Batida"],"Saborizantes":["Vainilla","Caramelo","Canela","Calahua"],"Tés":["Té de Manzanilla con Hinojo y Aloe Vera","Té Negro de Frutos Rojos","Té Manzanilla y Lavanda","Té Verde Limón","Té Jengibre y Lima","Té Blanco y Menta"],"Siropes":["Sirope Frutos Rojos","Sirope Mora Azul","Sirope Cereza","Sirope Manzana Verde","Sirope Fresa – Kiwi","Sirope Mango","Sirope Maracuya Tropical","Concentrado de Jamaica"],"Toppings":["Nuez","Arándanos","Galleta Oreo","Chispas de Chocolate","Chispas de Vainilla","Chispas de Colores","Mazapán","Perlas explosivas de Frutos Rojos","Perlas explosivas de Manzana verde","Perlas explosivas de Mora Azul"],"Helados y hielo":["Helado de Vainilla","Hielo","Garrafón de Agua"],"Desechables":["Vasos café caliente 16 oz","Tapas café caliente 16 oz","Vasos café caliente 12 oz","Tapas café caliente 12 oz","Vasos café caliente 8 oz","Vasos frappé 16 oz","Tapas frappé 16 oz","Vasos frappé 12 oz","Tapas frappé 12 oz","Vasos frappé 8 oz","Tapas frappé 8 oz","Cartón para vaso","Popotes"]},
+  alimentos:{"Panes y masas":["Cuernitos","Bolillos","Tortas","Pan para Sándwich","Harina","Huevo","Vainilla"],"Proteínas":["Jamón","Milanesa","Salchicha","Tocino"],"Quesos":["Queso Mozzarella","Queso Crema","Queso Amarillo","Quesillo"],"Verduras y frescos":["Lechuga","Jitomate","Cebolla","Cilantro","Aguacate","Serranito","Rajas","Chipotles","Papas Gajo"],"Salsas y aderezos":["Valentina","Catsup","Salsa Macha","Mermelada de Fresa","Mermelada de Zarzamora","Cajeta"],"Postres":["Pay de Limón","Flan Napolitano","Cheesecake Zarzamora"],"Desechables":["Papel Cuadrado","Bolsas de 2 orejas","Servilletas"],"Limpieza":["Papel para Baño","Limpiador con aroma","Jabón para Trastes","Esponja para Trastes","Guantes para Limpieza"]}
+};
+const TODOS_PRODUCTOS=[...new Set([
+  ...Object.values(CATALOGO_INS.bebidas).flat(),
+  ...Object.values(CATALOGO_INS.alimentos).flat()
+])].sort((a,b)=>a.localeCompare(b,'es'));
+
+// ─── INSUMOS ESTADO ──────────────────────────────────────────
+let insGastosHoy={};   // {producto: importe_acumulado}
+let insBusqueda='';
+let insCalAnio=new Date().getFullYear();
+let insCalMes=new Date().getMonth();
+let insCalResumen={};  // {fecha: total}
+let insRangoInicio=null, insRangoFin=null;
+let insCalDiaSel=null;
+
+function fechaMex(){
+  const ahora=new Date();
+  const mx=new Date(ahora.toLocaleString('en-US',{timeZone:'America/Mexico_City'}));
+  return `${mx.getFullYear()}-${String(mx.getMonth()+1).padStart(2,'0')}-${String(mx.getDate()).padStart(2,'0')}`;
+}
+
+async function iniciarInsumos(){
+  const hoy=fechaMex();
+  document.getElementById('ins-fecha-lbl').textContent=new Date().toLocaleDateString('es-MX',{timeZone:'America/Mexico_City',weekday:'long',day:'numeric',month:'long'});
+  await cargarGastosHoyInsumos(hoy);
+  renderTablaInsumos();
+  insCalAnio=new Date().getFullYear();
+  insCalMes=new Date().getMonth();
+  await insCargarResumenMes();
+  insRenderCalendario();
+}
+
+async function cargarGastosHoyInsumos(fecha){
+  insGastosHoy={};
+  try{
+    const{data}=await sb.from('gastos_insumos').select('producto,importe').eq('fecha',fecha);
+    (data||[]).forEach(r=>{ insGastosHoy[r.producto]=Number(r.importe); });
+  }catch(e){ console.error(e); }
+  actualizarTotalHoy();
+}
+
+function actualizarTotalHoy(){
+  const total=Object.values(insGastosHoy).reduce((s,v)=>s+v,0);
+  document.getElementById('ins-total-hoy').textContent='$'+Math.round(total).toLocaleString();
+}
+
+function filtrarInsumos(val){ insBusqueda=val.toLowerCase(); renderTablaInsumos(); }
+
+function renderTablaInsumos(){
+  const tbody=document.getElementById('ins-tbody');
+  const filtrados=TODOS_PRODUCTOS.filter(p=>p.toLowerCase().includes(insBusqueda));
+  tbody.innerHTML=filtrados.map(prod=>{
+    const acum=insGastosHoy[prod]||0;
+    const id=`ins-inp-${prod.replace(/[^a-zA-Z0-9]/g,'_')}`;
+    return `<tr>
+      <td class="insumos-prod">${prod}</td>
+      <td class="insumos-acum">${acum>0?'$'+acum.toLocaleString():'-'}</td>
+      <td>
+        <div class="insumos-input-wrap">
+          <input class="insumos-input" type="number" id="${id}" placeholder="$0" min="0" step="0.01"
+            onkeydown="if(event.key==='Enter')guardarInsumo('${prod.replace(/'/g,"\\'")}','${id}')"/>
+          <button class="insumos-save-btn" onclick="guardarInsumo('${prod.replace(/'/g,"\\'")}','${id}')">+</button>
+          <span class="insumos-saved" id="saved-${id}">✓</span>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+async function guardarInsumo(producto,inputId){
+  const inp=document.getElementById(inputId);
+  const nuevo=parseFloat(inp.value);
+  if(isNaN(nuevo)||nuevo<=0){ inp.focus(); return; }
+  const fecha=fechaMex();
+  const acum=(insGastosHoy[producto]||0)+nuevo;
+  try{
+    await sb.from('gastos_insumos').upsert(
+      {fecha,producto,importe:acum,registrado_por:usuarioActual?.nombre||'admin'},
+      {onConflict:'fecha,producto'}
+    );
+    insGastosHoy[producto]=acum;
+    inp.value='';
+    actualizarTotalHoy();
+    renderTablaInsumos();
+    // Mostrar ✓ brevemente
+    const saved=document.getElementById(`saved-${inputId}`);
+    if(saved){ saved.classList.add('show'); setTimeout(()=>saved.classList.remove('show'),1500); }
+    // Actualizar resumen calendario
+    insCalResumen[fecha]=(insCalResumen[fecha]||0)-((insGastosHoy[producto]||0)-acum)+nuevo;
+    insCalResumen[fecha]=Object.values(insGastosHoy).reduce((s,v)=>s+v,0);
+    insRenderCalendario();
+  }catch(e){ mostrarNotifToast('Error','No se pudo guardar el gasto'); }
+}
+
+// ─── CALENDARIO INSUMOS ──────────────────────────────────────
+async function insCargarResumenMes(){
+  insCalResumen={};
+  const primerDia=`${insCalAnio}-${String(insCalMes+1).padStart(2,'0')}-01`;
+  const ultimoDia=`${insCalAnio}-${String(insCalMes+1).padStart(2,'0')}-${new Date(insCalAnio,insCalMes+1,0).getDate()}`;
+  try{
+    const{data}=await sb.from('gastos_insumos').select('fecha,importe').gte('fecha',primerDia).lte('fecha',ultimoDia);
+    (data||[]).forEach(r=>{
+      insCalResumen[r.fecha]=(insCalResumen[r.fecha]||0)+Number(r.importe);
+    });
+  }catch(e){}
+}
+
+function insCalCambiarMes(delta){
+  insCalMes+=delta;
+  if(insCalMes>11){insCalMes=0;insCalAnio++;}
+  if(insCalMes<0){insCalMes=11;insCalAnio--;}
+  insCargarResumenMes().then(insRenderCalendario);
+}
+
+function insRenderCalendario(){
+  const meses=['Enero','Feb','Mar','Abr','Mayo','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  document.getElementById('ins-cal-mes').textContent=`${meses[insCalMes]} ${insCalAnio}`;
+  const hoyStr=fechaMex();
+  const primerDia=new Date(insCalAnio,insCalMes,1);
+  const diasEnMes=new Date(insCalAnio,insCalMes+1,0).getDate();
+  const offset=(primerDia.getDay()+6)%7;
+  // Normalizar rango
+  const rInicio=insRangoInicio&&insRangoFin?(insRangoInicio<insRangoFin?insRangoInicio:insRangoFin):insRangoInicio;
+  const rFin=insRangoInicio&&insRangoFin?(insRangoInicio<insRangoFin?insRangoFin:insRangoInicio):null;
+  let html='';
+  for(let i=0;i<offset;i++) html+=`<div class="ins-dia vacio"></div>`;
+  for(let d=1;d<=diasEnMes;d++){
+    const f=`${insCalAnio}-${String(insCalMes+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const total=insCalResumen[f]||0;
+    const tieneDatos=total>0;
+    const esHoy=f===hoyStr;
+    const esSel=f===insCalDiaSel;
+    const enRango=rInicio&&rFin&&f>=rInicio&&f<=rFin;
+    const esInicio=f===rInicio;
+    const esFin=f===rFin;
+    let cls='ins-dia';
+    if(tieneDatos)cls+=' con-datos';
+    if(esHoy)cls+=' hoy';
+    if(esSel||esInicio)cls+=' rango-inicio';
+    if(esFin)cls+=' rango-fin';
+    else if(enRango&&!esInicio)cls+=' en-rango';
+    html+=`<div class="${cls}" onclick="insClickDia('${f}',event)">${d}${tieneDatos?`<span class="ins-dia-monto">$${Math.round(total/1000)>0?Math.round(total/1000)+'k':Math.round(total)}</span>`:''}
+    </div>`;
+  }
+  document.getElementById('ins-cal-grid').innerHTML=html;
+  actualizarInsAcciones();
+}
+
+function insClickDia(fecha,event){
+  if(event.ctrlKey||event.metaKey){
+    // Selección de rango
+    if(!insRangoInicio||insRangoFin){
+      insRangoInicio=fecha; insRangoFin=null; insCalDiaSel=null;
+    } else {
+      insRangoFin=fecha;
+    }
+  } else {
+    // Click simple — día individual
+    insCalDiaSel=fecha; insRangoInicio=null; insRangoFin=null;
+  }
+  insRenderCalendario();
+}
+
+function actualizarInsAcciones(){
+  const lbl=document.getElementById('ins-rango-lbl');
+  const btnDia=document.getElementById('ins-dl-dia-btn');
+  const btnRango=document.getElementById('ins-dl-rango-btn');
+  if(insCalDiaSel){
+    const[a,m,d]=insCalDiaSel.split('-');
+    const meses=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+    lbl.textContent=`Día: ${parseInt(d)} de ${meses[parseInt(m)-1]} de ${a}`;
+    btnDia.disabled=false; btnRango.disabled=true;
+  } else if(insRangoInicio&&insRangoFin){
+    const inicio=insRangoInicio<insRangoFin?insRangoInicio:insRangoFin;
+    const fin=insRangoInicio<insRangoFin?insRangoFin:insRangoInicio;
+    lbl.textContent=`Rango: ${inicio} → ${fin}`;
+    btnDia.disabled=true; btnRango.disabled=false;
+  } else if(insRangoInicio){
+    lbl.textContent=`Inicio: ${insRangoInicio} · Ctrl+Click para fin`;
+    btnDia.disabled=true; btnRango.disabled=true;
+  } else {
+    lbl.textContent='Sin selección';
+    btnDia.disabled=true; btnRango.disabled=true;
+  }
+}
+
+// ─── DESCARGAS EXCEL INSUMOS ──────────────────────────────────
+async function descargarInsumosDia(){
+  if(!insCalDiaSel) return;
+  await generarExcelInsumos([insCalDiaSel],insCalDiaSel);
+}
+
+async function descargarInsumosRango(){
+  if(!insRangoInicio||!insRangoFin) return;
+  const inicio=insRangoInicio<insRangoFin?insRangoInicio:insRangoFin;
+  const fin=insRangoInicio<insRangoFin?insRangoFin:insRangoInicio;
+  // Generar array de fechas en el rango
+  const fechas=[];
+  let cur=new Date(inicio+'T12:00:00');
+  const finDate=new Date(fin+'T12:00:00');
+  while(cur<=finDate){
+    fechas.push(cur.toISOString().slice(0,10));
+    cur.setDate(cur.getDate()+1);
+  }
+  await generarExcelInsumos(fechas,`${inicio}_${fin}`);
+}
+
+async function generarExcelInsumos(fechas,nombreSufijo){
+  mostrarNotifToast('⏳ Generando...','Preparando Excel de insumos');
+  try{
+    const{data}=await sb.from('gastos_insumos')
+      .select('fecha,producto,importe')
+      .in('fecha',fechas)
+      .order('fecha').order('producto');
+    if(!data?.length){
+      mostrarNotifToast('Sin datos','No hay gastos registrados en ese período');
+      return;
+    }
+
+    // Productos que tuvieron algún gasto (columnas)
+    const productosConDatos=[...new Set(data.map(r=>r.producto))].sort((a,b)=>a.localeCompare(b,'es'));
+    // Fechas con datos
+    const fechasConDatos=[...new Set(data.map(r=>r.fecha))].sort();
+
+    // Mapa: fecha -> producto -> importe
+    const mapa={};
+    data.forEach(r=>{
+      if(!mapa[r.fecha])mapa[r.fecha]={};
+      mapa[r.fecha][r.producto]=Number(r.importe);
+    });
+
+    const wb=XLSX.utils.book_new();
+    const wsData=[];
+
+    // Encabezados
+    wsData.push(['Fecha',...productosConDatos,'TOTAL DÍA']);
+
+    // Una fila por fecha
+    let totalGlobal=0;
+    const totalesPorProducto={};
+    fechasConDatos.forEach(f=>{
+      const[a,m,d]=f.split('-');
+      const meses=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+      const fechaLabel=`${parseInt(d)}-${meses[parseInt(m)-1]}-${a}`;
+      const fila=[fechaLabel];
+      let totalFila=0;
+      productosConDatos.forEach(p=>{
+        const val=mapa[f]?.[p]||0;
+        fila.push(val>0?val:'');
+        totalFila+=val;
+        totalesPorProducto[p]=(totalesPorProducto[p]||0)+val;
+      });
+      fila.push(totalFila);
+      totalGlobal+=totalFila;
+      wsData.push(fila);
+    });
+
+    // Fila de totales por producto
+    const filaTotales=['TOTAL'];
+    productosConDatos.forEach(p=>filaTotales.push(totalesPorProducto[p]||0));
+    filaTotales.push(totalGlobal);
+    wsData.push(filaTotales);
+
+    const ws=XLSX.utils.aoa_to_sheet(wsData);
+    ws['!cols']=[{wch:14},...productosConDatos.map(()=>({wch:16})),{wch:14}];
+
+    // Colorear fila de totales
+    const ri=wsData.length-1;
+    wsData[ri].forEach((_,ci)=>{
+      const ref=XLSX.utils.encode_cell({r:ri,c:ci});
+      if(ws[ref]) ws[ref].s={fill:{fgColor:{rgb:'2E220A'}},font:{color:{rgb:'d4a843'},bold:true}};
+    });
+
+    // Colorear valores > 0
+    wsData.forEach((fila,ri)=>{
+      if(ri===0||ri===wsData.length-1) return;
+      fila.forEach((val,ci)=>{
+        if(ci===0||!val||val===0) return;
+        const ref=XLSX.utils.encode_cell({r:ri,c:ci});
+        if(ws[ref]) ws[ref].s={fill:{fgColor:{rgb:'0D2E18'}},font:{color:{rgb:'5cb87a'}}};
+      });
+    });
+
+    XLSX.utils.book_append_sheet(wb,ws,'Insumos Gasto');
+    XLSX.writeFile(wb,`insumos_gasto_${nombreSufijo}.xlsx`);
+    mostrarNotifToast('✅ Excel descargado',`${fechasConDatos.length} día(s) · ${productosConDatos.length} producto(s)`);
+  }catch(e){
+    console.error(e);
+    mostrarNotifToast('Error','No se pudo generar el Excel');
+  }
 }
 function labelEstado(e){return {'recibido':'Recibido','preparando':'Preparando','en_camino':'En camino','listo':'Listo','entregado':'Entregado','cancelado':'Cancelado'}[e]||e;}
 function formatHora(p){
