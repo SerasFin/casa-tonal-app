@@ -217,7 +217,7 @@ textarea.field-input{resize:none}
       <label>Tu nombre</label>
       <select id="resp-sel">
         <option value="">— Selecciona tu nombre —</option>
-        <option>Ángeles</option><option>Carmen</option><option>Elena</option>
+        <option>Ángeles</option><option>Abril</option><option>Elena</option>
         <option>Janeth</option><option>Rocío</option><option>Marcos</option><option>Serafín</option>
       </select>
     </div>
@@ -247,7 +247,7 @@ textarea.field-input{resize:none}
       <label>Revisado por</label>
       <select id="inv-resp">
         <option value="">— Selecciona tu nombre —</option>
-        <option>Ángeles</option><option>Carmen</option><option>Elena</option>
+        <option>Ángeles</option><option>Abril</option><option>Elena</option>
         <option>Janeth</option><option>Rocío</option><option>Marcos</option><option>Serafín</option>
       </select>
     </div>
@@ -539,11 +539,31 @@ async function enviarInventario(){
   }
 }
 
-function addProducto(){
+async function cargarProductosCustom(){
+  try{
+    const{data}=await sb.from('productos_custom').select('nombre').order('nombre');
+    (data||[]).forEach(r=>{
+      const nombre=r.nombre;
+      const enCatalogo=Object.values(CATALOGO['bebidas']).flat().includes(nombre)||Object.values(CATALOGO['alimentos']).flat().includes(nombre);
+      if(!enCatalogo){
+        if(!customProductos['alimentos'])customProductos['alimentos']=[];
+        if(!customProductos['alimentos'].includes(nombre)) customProductos['alimentos'].push(nombre);
+      }
+    });
+  }catch(e){ console.error(e); }
+}
+
+async function addProducto(){
   const nombre=prompt('Nombre del producto a añadir:');
-  if(!nombre?.trim())return;
+  if(!nombre?.trim()) return;
+  try{
+    await sb.from('productos_custom').upsert({nombre:nombre.trim(),creado_por:'checklist'},{onConflict:'nombre'});
+  }catch(e){ console.error(e); }
   if(!customProductos[catInv])customProductos[catInv]=[];
-  if(!customProductos[catInv].includes(nombre.trim())){ customProductos[catInv].push(nombre.trim()); renderInv(); }
+  if(!customProductos[catInv].includes(nombre.trim())){
+    customProductos[catInv].push(nombre.trim());
+    renderInv();
+  }
 }
 
 // ─── ADMIN CALENDARIO ────────────────────────────────────────
@@ -847,8 +867,9 @@ async function descargarExcelDia(){
 }
 
 // ─── INIT ────────────────────────────────────────────────────
-function init(){
+async function init(){
   document.getElementById('fecha-hdr').textContent=new Date().toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'});
+  await cargarProductosCustom();
   renderChecklist();
   renderInv();
 }
