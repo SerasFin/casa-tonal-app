@@ -806,17 +806,17 @@ const CATALOGO_INS={
   bebidas:{"Cafés y base":["Café Oscuro","Café Medio","Café Honey","Chocolate Líquido","Chocolate en Polvo"],"Leches":["Leche Entera","Leche Deslactosada","Leche Evaporada","Crema Batida"],"Saborizantes":["Vainilla","Caramelo","Canela","Calahua"],"Tés":["Té de Manzanilla con Hinojo y Aloe Vera","Té Negro de Frutos Rojos","Té Manzanilla y Lavanda","Té Verde Limón","Té Jengibre y Lima","Té Blanco y Menta"],"Siropes":["Sirope Frutos Rojos","Sirope Mora Azul","Sirope Cereza","Sirope Manzana Verde","Sirope Fresa – Kiwi","Sirope Mango","Sirope Maracuya Tropical","Concentrado de Jamaica"],"Toppings":["Nuez","Arándanos","Galleta Oreo","Chispas de Chocolate","Chispas de Vainilla","Chispas de Colores","Mazapán","Perlas explosivas de Frutos Rojos","Perlas explosivas de Manzana verde","Perlas explosivas de Mora Azul"],"Helados y hielo":["Helado de Vainilla","Hielo","Garrafón de Agua"],"Desechables":["Vasos café caliente 16 oz","Tapas café caliente 16 oz","Vasos café caliente 12 oz","Tapas café caliente 12 oz","Vasos café caliente 8 oz","Vasos frappé 16 oz","Tapas frappé 16 oz","Vasos frappé 12 oz","Tapas frappé 12 oz","Vasos frappé 8 oz","Tapas frappé 8 oz","Cartón para vaso","Popotes"]},
   alimentos:{"Panes y masas":["Cuernitos","Bolillos","Tortas","Pan para Sándwich","Harina","Huevo","Vainilla"],"Proteínas":["Jamón","Milanesa","Salchicha","Tocino"],"Quesos":["Queso Mozzarella","Queso Crema","Queso Amarillo","Quesillo"],"Verduras y frescos":["Lechuga","Jitomate","Cebolla","Cilantro","Aguacate","Serranito","Rajas","Chipotles","Papas Gajo"],"Salsas y aderezos":["Valentina","Catsup","Salsa Macha","Mermelada de Fresa","Mermelada de Zarzamora","Cajeta"],"Postres":["Pay de Limón","Flan Napolitano","Cheesecake Zarzamora"],"Desechables":["Papel Cuadrado","Bolsas de 2 orejas","Servilletas"],"Limpieza":["Papel para Baño","Limpiador con aroma","Jabón para Trastes","Esponja para Trastes","Guantes para Limpieza"]}
 };
-const TODOS_PRODUCTOS=[...new Set([
+let TODOS_PRODUCTOS=[...new Set([
   ...Object.values(CATALOGO_INS.bebidas).flat(),
   ...Object.values(CATALOGO_INS.alimentos).flat()
 ])].sort((a,b)=>a.localeCompare(b,'es'));
 
 // ─── INSUMOS ESTADO ──────────────────────────────────────────
-let insGastosHoy={};   // {producto: importe_acumulado}
+let insGastosHoy={};
 let insBusqueda='';
 let insCalAnio=new Date().getFullYear();
 let insCalMes=new Date().getMonth();
-let insCalResumen={};  // {fecha: total}
+let insCalResumen={};
 let insRangoInicio=null, insRangoFin=null;
 let insCalDiaSel=null;
 
@@ -826,9 +826,41 @@ function fechaMex(){
   return `${mx.getFullYear()}-${String(mx.getMonth()+1).padStart(2,'0')}-${String(mx.getDate()).padStart(2,'0')}`;
 }
 
+async function cargarProductosCustom(){
+  try{
+    const{data}=await sb.from('productos_custom').select('nombre').order('nombre');
+    (data||[]).forEach(r=>{
+      if(!TODOS_PRODUCTOS.includes(r.nombre)){
+        TODOS_PRODUCTOS.push(r.nombre);
+        TODOS_PRODUCTOS.sort((a,b)=>a.localeCompare(b,'es'));
+      }
+    });
+  }catch(e){ console.error(e); }
+}
+
+async function agregarProductoCustom(){
+  const nombre=insBusqueda.trim();
+  if(!nombre) return;
+  try{
+    await sb.from('productos_custom').upsert({nombre,creado_por:usuarioActual?.nombre||'admin'},{onConflict:'nombre'});
+    if(!TODOS_PRODUCTOS.includes(nombre)){
+      TODOS_PRODUCTOS.push(nombre);
+      TODOS_PRODUCTOS.sort((a,b)=>a.localeCompare(b,'es'));
+    }
+    mostrarNotifToast('✅ Producto añadido',`"${nombre}" ya está disponible en la lista`);
+    insBusqueda='';
+    const searchEl=document.getElementById('ins-search');
+    if(searchEl) searchEl.value='';
+    renderTablaInsumos();
+  }catch(e){
+    mostrarNotifToast('Error','No se pudo agregar el producto');
+  }
+}
+
 async function iniciarInsumos(){
   const hoy=fechaMex();
   document.getElementById('ins-fecha-lbl').textContent=new Date().toLocaleDateString('es-MX',{timeZone:'America/Mexico_City',weekday:'long',day:'numeric',month:'long'});
+  await cargarProductosCustom();
   await cargarGastosHoyInsumos(hoy);
   renderTablaInsumos();
   insCalAnio=new Date().getFullYear();
@@ -858,6 +890,20 @@ function filtrarInsumos(val){ insBusqueda=val.toLowerCase(); renderTablaInsumos(
 function renderTablaInsumos(){
   const tbody=document.getElementById('ins-tbody');
   const filtrados=TODOS_PRODUCTOS.filter(p=>p.toLowerCase().includes(insBusqueda));
+
+  // Si no hay resultados y hay texto en el buscador, mostrar botón de agregar
+  if(!filtrados.length && insBusqueda.trim()){
+    tbody.innerHTML=`<tr><td colspan="6" style="padding:16px 20px">
+      <div style="display:flex;align-items:center;gap:12px;color:var(--crema-dim);font-size:13px">
+        <span>Sin resultados para "<b style="color:var(--crema)">${insBusqueda}</b>"</span>
+        <button onclick="agregarProductoCustom()" style="padding:6px 14px;background:rgba(29,106,53,.3);border:1px solid var(--verde);border-radius:var(--radio-sm);color:#5cb87a;font-size:12px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;white-space:nowrap">
+          + Agregar "${insBusqueda}"
+        </button>
+      </div>
+    </td></tr>`;
+    return;
+  }
+
   tbody.innerHTML=filtrados.map(prod=>{
     const reg=insGastosHoy[prod]||{importe:0,unidad:'',cantidad:''};
     const acum=reg.importe||0;
