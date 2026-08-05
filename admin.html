@@ -358,7 +358,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--texto);mi
         </div>
         <input class="insumos-search" type="text" placeholder="🔍 Buscar producto..." oninput="filtrarInsumos(this.value)" id="ins-search"/>
         <table class="insumos-tabla">
-          <thead><tr><th>Producto</th><th>Acumulado hoy</th><th>Agregar gasto</th></tr></thead>
+          <thead><tr><th>Producto</th><th>Acumulado hoy</th><th>Unidad</th><th>Cantidad</th><th>Importe $</th><th></th></tr></thead>
           <tbody id="ins-tbody"></tbody>
         </table>
       </div>
@@ -840,14 +840,16 @@ async function iniciarInsumos(){
 async function cargarGastosHoyInsumos(fecha){
   insGastosHoy={};
   try{
-    const{data}=await sb.from('gastos_insumos').select('producto,importe').eq('fecha',fecha);
-    (data||[]).forEach(r=>{ insGastosHoy[r.producto]=Number(r.importe); });
+    const{data}=await sb.from('gastos_insumos').select('producto,importe,unidad,cantidad').eq('fecha',fecha);
+    (data||[]).forEach(r=>{
+      insGastosHoy[r.producto]={importe:Number(r.importe),unidad:r.unidad||'',cantidad:r.cantidad||''};
+    });
   }catch(e){ console.error(e); }
   actualizarTotalHoy();
 }
 
 function actualizarTotalHoy(){
-  const total=Object.values(insGastosHoy).reduce((s,v)=>s+v,0);
+  const total=Object.values(insGastosHoy).reduce((s,v)=>s+(v.importe||0),0);
   document.getElementById('ins-total-hoy').textContent='$'+Math.round(total).toLocaleString();
 }
 
@@ -857,44 +859,64 @@ function renderTablaInsumos(){
   const tbody=document.getElementById('ins-tbody');
   const filtrados=TODOS_PRODUCTOS.filter(p=>p.toLowerCase().includes(insBusqueda));
   tbody.innerHTML=filtrados.map(prod=>{
-    const acum=insGastosHoy[prod]||0;
+    const reg=insGastosHoy[prod]||{importe:0,unidad:'',cantidad:''};
+    const acum=reg.importe||0;
     const id=`ins-inp-${prod.replace(/[^a-zA-Z0-9]/g,'_')}`;
+    const idU=`ins-uni-${prod.replace(/[^a-zA-Z0-9]/g,'_')}`;
+    const idC=`ins-can-${prod.replace(/[^a-zA-Z0-9]/g,'_')}`;
+    const pEsc=prod.replace(/'/g,"\\'");
     return `<tr>
       <td class="insumos-prod">${prod}</td>
       <td class="insumos-acum">${acum>0?'$'+acum.toLocaleString():'-'}</td>
       <td>
+        <select class="insumos-input" id="${idU}" style="width:70px">
+          <option value="">-</option>
+          <option value="Ltr">Ltr</option>
+          <option value="kg">kg</option>
+          <option value="Pieza">Pieza</option>
+        </select>
+      </td>
+      <td>
+        <input class="insumos-input" type="number" id="${idC}" placeholder="0" min="0" step="0.01" style="width:80px"/>
+      </td>
+      <td>
         <div class="insumos-input-wrap">
-          <input class="insumos-input" type="number" id="${id}" placeholder="$0" min="0" step="0.01"
-            onkeydown="if(event.key==='Enter')guardarInsumo('${prod.replace(/'/g,"\\'")}','${id}')"/>
-          <button class="insumos-save-btn" onclick="guardarInsumo('${prod.replace(/'/g,"\\'")}','${id}')">+</button>
-          <span class="insumos-saved" id="saved-${id}">✓</span>
+          <input class="insumos-input" type="number" id="${id}" placeholder="$0" min="0" step="0.01" style="width:90px"
+            onkeydown="if(event.key==='Enter')guardarInsumo('${pEsc}','${id}','${idU}','${idC}')"/>
         </div>
+      </td>
+      <td>
+        <button class="insumos-save-btn" onclick="guardarInsumo('${pEsc}','${id}','${idU}','${idC}')">+</button>
+        <span class="insumos-saved" id="saved-${id}">✓</span>
       </td>
     </tr>`;
   }).join('');
 }
 
-async function guardarInsumo(producto,inputId){
+async function guardarInsumo(producto,inputId,unidadId,cantidadId){
   const inp=document.getElementById(inputId);
+  const unidadEl=document.getElementById(unidadId);
+  const cantidadEl=document.getElementById(cantidadId);
   const nuevo=parseFloat(inp.value);
   if(isNaN(nuevo)||nuevo<=0){ inp.focus(); return; }
+  const unidad=unidadEl?.value||'';
+  const cantidad=parseFloat(cantidadEl?.value)||null;
   const fecha=fechaMex();
-  const acum=(insGastosHoy[producto]||0)+nuevo;
+  const reg=insGastosHoy[producto]||{importe:0};
+  const acum=(reg.importe||0)+nuevo;
   try{
     await sb.from('gastos_insumos').upsert(
-      {fecha,producto,importe:acum,registrado_por:usuarioActual?.nombre||'admin'},
+      {fecha,producto,importe:acum,unidad:unidad||null,cantidad,registrado_por:usuarioActual?.nombre||'admin'},
       {onConflict:'fecha,producto'}
     );
-    insGastosHoy[producto]=acum;
+    insGastosHoy[producto]={importe:acum,unidad,cantidad};
     inp.value='';
+    if(cantidadEl) cantidadEl.value='';
     actualizarTotalHoy();
     renderTablaInsumos();
-    // Mostrar ✓ brevemente
     const saved=document.getElementById(`saved-${inputId}`);
     if(saved){ saved.classList.add('show'); setTimeout(()=>saved.classList.remove('show'),1500); }
-    // Actualizar resumen calendario
-    insCalResumen[fecha]=(insCalResumen[fecha]||0)-((insGastosHoy[producto]||0)-acum)+nuevo;
-    insCalResumen[fecha]=Object.values(insGastosHoy).reduce((s,v)=>s+v,0);
+    insCalResumen[fecha]=Object.values(insGastosHoy).reduce((s,v)=>s+(v.importe||0),0);
     insRenderCalendario();
   }catch(e){ mostrarNotifToast('Error','No se pudo guardar el gasto'); }
 }
@@ -1016,7 +1038,7 @@ async function generarExcelInsumos(fechas,nombreSufijo){
   mostrarNotifToast('⏳ Generando...','Preparando Excel de insumos');
   try{
     const{data}=await sb.from('gastos_insumos')
-      .select('fecha,producto,importe')
+      .select('fecha,producto,importe,unidad,cantidad')
       .in('fecha',fechas)
       .order('fecha').order('producto');
     if(!data?.length){
@@ -1029,20 +1051,29 @@ async function generarExcelInsumos(fechas,nombreSufijo){
     // Fechas con datos
     const fechasConDatos=[...new Set(data.map(r=>r.fecha))].sort();
 
-    // Mapa: fecha -> producto -> importe
+    // Mapa: fecha -> producto -> {importe, unidad, cantidad}
     const mapa={};
     data.forEach(r=>{
       if(!mapa[r.fecha])mapa[r.fecha]={};
-      mapa[r.fecha][r.producto]=Number(r.importe);
+      mapa[r.fecha][r.producto]={importe:Number(r.importe),unidad:r.unidad||'',cantidad:r.cantidad||''};
     });
 
     const wb=XLSX.utils.book_new();
     const wsData=[];
 
-    // Encabezados
-    wsData.push(['Fecha',...productosConDatos,'TOTAL DÍA']);
+    // Fila 1: encabezados — cada producto ocupa 3 columnas: Unidad | Cantidad | Importe
+    const encabezado=['Fecha'];
+    productosConDatos.forEach(p=>{ encabezado.push(p,'',''); });
+    encabezado.push('TOTAL DÍA');
+    wsData.push(encabezado);
 
-    // Una fila por fecha
+    // Fila 2: sub-encabezados
+    const subEncabezado=[''];
+    productosConDatos.forEach(()=>{ subEncabezado.push('Unidad','Cantidad','Importe $'); });
+    subEncabezado.push('');
+    wsData.push(subEncabezado);
+
+    // Filas de datos — una por fecha
     let totalGlobal=0;
     const totalesPorProducto={};
     fechasConDatos.forEach(f=>{
@@ -1052,37 +1083,48 @@ async function generarExcelInsumos(fechas,nombreSufijo){
       const fila=[fechaLabel];
       let totalFila=0;
       productosConDatos.forEach(p=>{
-        const val=mapa[f]?.[p]||0;
-        fila.push(val>0?val:'');
-        totalFila+=val;
-        totalesPorProducto[p]=(totalesPorProducto[p]||0)+val;
+        const reg=mapa[f]?.[p];
+        const imp=reg?reg.importe:0;
+        fila.push(reg?.unidad||'', reg?.cantidad||'', imp>0?imp:'');
+        totalFila+=imp;
+        totalesPorProducto[p]=(totalesPorProducto[p]||0)+imp;
       });
-      fila.push(totalFila);
+      fila.push(totalFila||'');
       totalGlobal+=totalFila;
       wsData.push(fila);
     });
 
-    // Fila de totales por producto
+    // Fila de totales
     const filaTotales=['TOTAL'];
-    productosConDatos.forEach(p=>filaTotales.push(totalesPorProducto[p]||0));
+    productosConDatos.forEach(p=>{ filaTotales.push('','',totalesPorProducto[p]||0); });
     filaTotales.push(totalGlobal);
     wsData.push(filaTotales);
 
     const ws=XLSX.utils.aoa_to_sheet(wsData);
-    ws['!cols']=[{wch:14},...productosConDatos.map(()=>({wch:16})),{wch:14}];
+
+    // Combinar celdas encabezado producto (3 cols cada uno)
+    if(!ws['!merges'])ws['!merges']=[];
+    productosConDatos.forEach((_,i)=>{
+      const col=1+(i*3);
+      ws['!merges'].push({s:{r:0,c:col},e:{r:0,c:col+2}});
+    });
+
+    ws['!cols']=[{wch:14},...productosConDatos.flatMap(()=>[{wch:8},{wch:10},{wch:12}]),{wch:14}];
 
     // Colorear fila de totales
-    const ri=wsData.length-1;
-    wsData[ri].forEach((_,ci)=>{
-      const ref=XLSX.utils.encode_cell({r:ri,c:ci});
+    const riTot=wsData.length-1;
+    wsData[riTot].forEach((_,ci)=>{
+      const ref=XLSX.utils.encode_cell({r:riTot,c:ci});
       if(ws[ref]) ws[ref].s={fill:{fgColor:{rgb:'2E220A'}},font:{color:{rgb:'d4a843'},bold:true}};
     });
 
-    // Colorear valores > 0
+    // Colorear importes > 0
     wsData.forEach((fila,ri)=>{
-      if(ri===0||ri===wsData.length-1) return;
-      fila.forEach((val,ci)=>{
-        if(ci===0||!val||val===0) return;
+      if(ri<=1||ri===wsData.length-1) return;
+      productosConDatos.forEach((_,i)=>{
+        const ci=1+(i*3)+2; // columna Importe
+        const val=fila[ci];
+        if(!val||val===0) return;
         const ref=XLSX.utils.encode_cell({r:ri,c:ci});
         if(ws[ref]) ws[ref].s={fill:{fgColor:{rgb:'0D2E18'}},font:{color:{rgb:'5cb87a'}}};
       });
