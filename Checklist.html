@@ -236,6 +236,8 @@ textarea.field-input{resize:none}
       <button class="cat-tab active" id="tab-beb" onclick="setCategoria('bebidas')">☕ Bebidas</button>
       <button class="cat-tab" id="tab-ali" onclick="setCategoria('alimentos')">🥐 Alimentos</button>
     </div>
+    <input type="text" id="inv-search" placeholder="🔍 Buscar producto..." oninput="filtrarInventario(this.value)"
+      style="width:100%;padding:9px 12px;border-radius:10px;border:1.5px solid var(--crema-d);background:var(--blanco);color:var(--cafe);font-size:14px;font-family:'DM Sans',sans-serif;margin-bottom:12px;outline:none"/>
     <div class="legend">
       <span class="pill pill-ok">✓ Suficiente</span>
       <span class="pill pill-low">⚠ Poco</span>
@@ -252,7 +254,6 @@ textarea.field-input{resize:none}
       </select>
     </div>
     <button class="enviar-btn" id="btn-enviar-inv" onclick="enviarInventario()">Enviar inventario</button>
-    <button class="add-btn" onclick="addProducto()">+ Añadir producto</button>
     <div class="footer-note">Casa Tonal · Amozoc, Puebla</div>
   </div>
 
@@ -443,6 +444,9 @@ function getInv(tipo,prod){ return invCache[invKey(tipo,prod)]||{status:'',qty:'
 
 function setCategoria(c){
   catInv=c;
+  invBusqueda='';
+  const searchEl=document.getElementById('inv-search');
+  if(searchEl) searchEl.value='';
   document.getElementById('tab-beb').className='cat-tab'+(c==='bebidas'?' active':'');
   document.getElementById('tab-ali').className='cat-tab'+(c==='alimentos'?' active':'');
   renderInv();
@@ -461,42 +465,85 @@ function renderInvBadge(st){
   return `<span class="st-badge badge-none">— Revisar</span>`;
 }
 
+function makeInvCard(prod, tipo, idx){
+  const d=getInv(tipo,prod);
+  const id=`inv-${idx}`;
+  const cls=d.status?`st-${d.status}`:'';
+  const btns=['ok','low','out'].map(s=>{
+    const labels={ok:'Suficiente',low:'Poco',out:'Agotado'};
+    const c=d.status===s?`sel-${s}`:'unsel';
+    return `<button class="st-btn ${c}" onclick="setStatusInv('${tipo}','${escQ(prod)}','${s}','${id}')">${labels[s]}</button>`;
+  }).join('');
+  return `<div class="inv-card ${cls}" id="${id}">
+    <div class="inv-top" onclick="document.getElementById('${id}').classList.toggle('open')">
+      <span class="inv-name">${prod}</span>${renderInvBadge(d.status)}
+    </div>
+    <div class="inv-detail">
+      <div class="st-row">${btns}</div>
+      <div class="field-row"><label>Cantidad</label><input class="field-input" type="text" placeholder="ej. 2 paquetes" value="${esc(d.qty)}" onchange="invCache[invKey('${tipo}','${escQ(prod)}')].qty=this.value"/></div>
+      <div class="field-row"><label>Nota</label><textarea class="field-input" rows="2" placeholder="ej. pedir el martes..." onchange="invCache[invKey('${tipo}','${escQ(prod)}')].nota=this.value">${esc(d.nota)}</textarea></div>
+    </div>
+  </div>`;
+}
+
+let invBusqueda='';
+function filtrarInventario(val){ invBusqueda=val.toLowerCase(); renderInv(); }
+
 function renderInv(){
   const secs=CATALOGO[catInv], cx=customProductos[catInv]||[];
+  const todosCustom=[...(customProductos['bebidas']||[]),...(customProductos['alimentos']||[])];
+  // quitar duplicados con catálogo
+  const cxFiltrados=cx.filter(p=>!Object.values(secs).flat().includes(p));
+
   let html=''; let idx=0;
-  for(const[sec,items]of Object.entries(secs)){
-    html+=`<div class="section-lbl">${sec}</div>`;
-    items.forEach(prod=>{
-      const d=getInv(catInv,prod);
-      const id=`inv-${idx++}`;
-      const cls=d.status?`st-${d.status}`:'';
-      const btns=['ok','low','out'].map(s=>{
-        const labels={ok:'Suficiente',low:'Poco',out:'Agotado'};
-        const c=d.status===s?`sel-${s}`:'unsel';
-        return `<button class="st-btn ${c}" onclick="setStatusInv('${catInv}','${escQ(prod)}','${s}','${id}')">${labels[s]}</button>`;
-      }).join('');
-      html+=`<div class="inv-card ${cls}" id="${id}">
-        <div class="inv-top" onclick="document.getElementById('${id}').classList.toggle('open')">
-          <span class="inv-name">${prod}</span>${renderInvBadge(d.status)}
-        </div>
-        <div class="inv-detail">
-          <div class="st-row">${btns}</div>
-          <div class="field-row"><label>Cantidad</label><input class="field-input" type="text" placeholder="ej. 2 paquetes" value="${esc(d.qty)}" onchange="invCache[invKey('${catInv}','${escQ(prod)}')].qty=this.value"/></div>
-          <div class="field-row"><label>Nota</label><textarea class="field-input" rows="2" placeholder="ej. pedir el martes..." onchange="invCache[invKey('${catInv}','${escQ(prod)}')].nota=this.value">${esc(d.nota)}</textarea></div>
-        </div>
+
+  if(invBusqueda){
+    // Modo búsqueda — mostrar todos los productos que coincidan
+    const todosProd=[...Object.values(secs).flat(),...cxFiltrados];
+    const encontrados=todosProd.filter(p=>p.toLowerCase().includes(invBusqueda));
+    if(encontrados.length){
+      html+=`<div class="section-lbl">Resultados</div>`;
+      encontrados.forEach(prod=>{ html+=makeInvCard(prod,catInv,idx++); });
+    } else {
+      // No encontrado — botón para agregar
+      html+=`<div style="padding:16px;background:var(--blanco);border:1.5px solid var(--crema-d);border-radius:10px;margin-bottom:8px">
+        <div style="font-size:13px;color:var(--cafe-m);margin-bottom:10px">Sin resultados para "<b style="color:var(--cafe)">${invBusqueda}</b>"</div>
+        <button onclick="addProductoInv()" style="width:100%;padding:9px;background:var(--ok-bg);border:1.5px solid var(--ok-bd);border-radius:8px;color:var(--ok);font-size:13px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif">
+          + Agregar "${invBusqueda}" al inventario
+        </button>
       </div>`;
-    });
+    }
+  } else {
+    // Modo normal — secciones del catálogo
+    for(const[sec,items]of Object.entries(secs)){
+      html+=`<div class="section-lbl">${sec}</div>`;
+      items.forEach(prod=>{ html+=makeInvCard(prod,catInv,idx++); });
+    }
+    if(cxFiltrados.length){
+      html+=`<div class="section-lbl">Añadidos</div>`;
+      cxFiltrados.forEach(prod=>{ html+=makeInvCard(prod,catInv,idx++); });
+    }
   }
-  if(cx.length){
-    html+=`<div class="section-lbl">Añadidos</div>`;
-    cx.forEach(prod=>{
-      const d=getInv(catInv,prod);
-      const id=`inv-cx-${idx++}`;
-      html+=`<div class="inv-card" id="${id}"><div class="inv-top" onclick="document.getElementById('${id}').classList.toggle('open')"><span class="inv-name">${prod}</span>${renderInvBadge(d.status)}</div></div>`;
-    });
-  }
+
   document.getElementById('inv-body').innerHTML=html;
   renderResumen();
+}
+
+async function addProductoInv(){
+  const nombre=invBusqueda.trim();
+  if(!nombre) return;
+  try{
+    await sb.from('productos_custom').upsert({nombre,creado_por:'inventario'},{onConflict:'nombre'});
+  }catch(e){ console.error(e); }
+  if(!customProductos[catInv])customProductos[catInv]=[];
+  if(!customProductos[catInv].includes(nombre)){
+    customProductos[catInv].push(nombre);
+  }
+  invBusqueda='';
+  const searchEl=document.getElementById('inv-search');
+  if(searchEl) searchEl.value='';
+  renderInv();
+  notif(`✅ "${nombre}" añadido al inventario`);
 }
 
 function renderResumen(){
