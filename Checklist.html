@@ -533,7 +533,7 @@ async function addProductoInv(){
   const nombre=invBusqueda.trim();
   if(!nombre) return;
   try{
-    await sb.from('productos_custom').upsert({nombre,creado_por:'inventario'},{onConflict:'nombre'});
+    await sb.from('productos_custom').upsert({nombre,categoria:catInv,creado_por:'inventario'},{onConflict:'nombre'});
   }catch(e){ console.error(e); }
   if(!customProductos[catInv])customProductos[catInv]=[];
   if(!customProductos[catInv].includes(nombre)){
@@ -588,13 +588,14 @@ async function enviarInventario(){
 
 async function cargarProductosCustom(){
   try{
-    const{data}=await sb.from('productos_custom').select('nombre').order('nombre');
+    const{data}=await sb.from('productos_custom').select('nombre,categoria').order('nombre');
     (data||[]).forEach(r=>{
       const nombre=r.nombre;
+      const cat=r.categoria||'alimentos';
       const enCatalogo=Object.values(CATALOGO['bebidas']).flat().includes(nombre)||Object.values(CATALOGO['alimentos']).flat().includes(nombre);
       if(!enCatalogo){
-        if(!customProductos['alimentos'])customProductos['alimentos']=[];
-        if(!customProductos['alimentos'].includes(nombre)) customProductos['alimentos'].push(nombre);
+        if(!customProductos[cat])customProductos[cat]=[];
+        if(!customProductos[cat].includes(nombre)) customProductos[cat].push(nombre);
       }
     });
   }catch(e){ console.error(e); }
@@ -604,7 +605,7 @@ async function addProducto(){
   const nombre=prompt('Nombre del producto a añadir:');
   if(!nombre?.trim()) return;
   try{
-    await sb.from('productos_custom').upsert({nombre:nombre.trim(),creado_por:'checklist'},{onConflict:'nombre'});
+    await sb.from('productos_custom').upsert({nombre:nombre.trim(),categoria:catInv,creado_por:'checklist'},{onConflict:'nombre'});
   }catch(e){ console.error(e); }
   if(!customProductos[catInv])customProductos[catInv]=[];
   if(!customProductos[catInv].includes(nombre.trim())){
