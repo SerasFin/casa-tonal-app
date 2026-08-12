@@ -828,7 +828,7 @@ function fechaMex(){
 
 async function cargarProductosCustom(){
   try{
-    const{data}=await sb.from('productos_custom').select('nombre').order('nombre');
+    const{data}=await sb.from('productos_custom').select('nombre,categoria').order('nombre');
     (data||[]).forEach(r=>{
       if(!TODOS_PRODUCTOS.includes(r.nombre)){
         TODOS_PRODUCTOS.push(r.nombre);
@@ -842,7 +842,7 @@ async function agregarProductoCustom(){
   const nombre=insBusqueda.trim();
   if(!nombre) return;
   try{
-    await sb.from('productos_custom').upsert({nombre,creado_por:usuarioActual?.nombre||'admin'},{onConflict:'nombre'});
+    await sb.from('productos_custom').upsert({nombre,categoria:'alimentos',creado_por:usuarioActual?.nombre||'admin'},{onConflict:'nombre'});
     if(!TODOS_PRODUCTOS.includes(nombre)){
       TODOS_PRODUCTOS.push(nombre);
       TODOS_PRODUCTOS.sort((a,b)=>a.localeCompare(b,'es'));
